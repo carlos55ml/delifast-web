@@ -4,6 +4,7 @@ import type {
   PedidoNegocio, Problema, ProductoCarta, ResumenAdmin,
 } from "../tipos";
 import { incidencias, localidades, negocios, perfilAdmin, repartidoresEnRuta } from "./datos";
+import { estadisticasSimuladas } from "./estadisticas";
 import { carta, empleados, incidenciasNegocio, miNegocio, pedidos, perfilNegocio, perfilRepartidor, repartidores } from "./datosNegocio";
 
 /**
@@ -309,6 +310,13 @@ export async function responderSimulado(request: Request, schemaPath: string): P
       pedido.reparto = { id: pedido.id + 5000, repartidor: { id: repartidor.id, nombre: repartidor.nombre }, fechaAsignacion: new Date().toISOString(), fechaEntrega: null };
       repartidor.pedidosEnReparto++;
       return json(pedido);
+    }
+
+    case "GET /negocio/estadisticas": {
+      const periodo = url.searchParams.get("periodo");
+      if (periodo !== "DIA" && periodo !== "SEMANA" && periodo !== "MES")
+        return problema(400, "Datos de entrada no válidos", { errores: ["periodo: debe ser DIA, SEMANA o MES"] });
+      return json(estadisticasSimuladas(periodo, url.searchParams.get("fecha")));
     }
 
     case "GET /negocio/incidencias": {

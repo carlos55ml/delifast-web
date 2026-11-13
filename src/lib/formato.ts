@@ -10,7 +10,8 @@ export function fechaLarga(fecha: Date, { conAnio = true } = {}): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-const formatoEuros = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
+// useGrouping "always": en es-ES, sin él 2940 no lleva punto de miles (Figma: "2.940 €").
+const formatoEuros = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", useGrouping: "always" });
 
 /** 15.9 → "15,90 €" */
 export function euros(importe: number): string {
