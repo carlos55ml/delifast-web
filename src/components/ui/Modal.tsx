@@ -20,7 +20,11 @@ export function Modal({ titulo, abierto, onCerrar, children, tamano = "normal" }
   useEffect(() => {
     const dialogo = ref.current;
     if (!dialogo) return;
-    if (abierto && !dialogo.open) dialogo.showModal();
+    if (abierto && !dialogo.open) {
+      dialogo.showModal();
+      // showModal() lleva el foco al primer botón (Cerrar); mejor al primer campo, si lo hay.
+      dialogo.querySelector<HTMLElement>("input:not([disabled]):not([type=hidden]):not(.sr-only), select, textarea")?.focus();
+    }
     if (!abierto && dialogo.open) dialogo.close();
   }, [abierto]);
 

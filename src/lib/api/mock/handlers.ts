@@ -1,10 +1,10 @@
 import { rolDemoNavegador } from "@/lib/auth/demo";
 import type {
-  AltaNegocio, DatosMiNegocio, DatosNegocio, DatosProducto, EstadoIncidencia, EstadoPedido, FranjaHorario, NegocioAdmin,
+  AltaMiembro, AltaNegocio, DatosMiembro, DatosMiNegocio, DatosNegocio, DatosProducto, EstadoIncidencia, EstadoPedido, FranjaHorario, NegocioAdmin,
   PedidoNegocio, Problema, ProductoCarta, ResumenAdmin,
 } from "../tipos";
 import { incidencias, localidades, negocios, perfilAdmin, repartidoresEnRuta } from "./datos";
-import { carta, miNegocio, pedidos, perfilNegocio, perfilRepartidor, repartidores } from "./datosNegocio";
+import { carta, empleados, miNegocio, pedidos, perfilNegocio, perfilRepartidor, repartidores } from "./datosNegocio";
 
 /**
  * Simulador de la API (estilo MSW): responde en el navegador a las rutas del contrato
@@ -101,6 +101,19 @@ function validarHorarios(franjas: FranjaHorario[]): string[] {
   return errores;
 }
 
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+function validarMiembro(d: Partial<AltaMiembro>, alta: boolean): string[] {
+  const errores: string[] = [];
+  if (!d.nombre?.trim()) errores.push("nombre: no puede estar vacío");
+  if (d.telefono && d.telefono.replace(/\D/g, "").length < 9) errores.push("telefono: debe tener al menos 9 cifras");
+  if (alta && !EMAIL.test(d.email ?? "")) errores.push("email: no es un email válido");
+  return errores;
+}
+
+const emailEnUso = (email: string) =>
+  [...empleados, ...repartidores].some((m) => m.email === email) || negocios.some((n) => n.dueno?.email === email);
+
 const esHoy = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 const sinResolver = (estado: EstadoIncidencia) => estado !== "RESUELTA";
 const porFechaDesc = <T extends { fechaCreacion: string }>(a: T, b: T) => b.fechaCreacion.localeCompare(a.fechaCreacion);
@@ -135,7 +148,8 @@ function resumen(): ResumenAdmin {
 export async function responderSimulado(request: Request, schemaPath: string): Promise<Response> {
   await esperar();
   const url = new URL(request.url);
-  const id = Number(url.pathname.split("/")[3]);
+  const idTexto = url.pathname.split("/")[3] ?? "";
+  const id = Number(idTexto);
   const ruta = `${request.method} ${schemaPath}`;
   const negocio = negocios.find((n) => n.id === id);
   const idPedido = Number(url.pathname.split("/")[url.pathname.startsWith("/negocio/") ? 3 : 2]);
@@ -295,6 +309,51 @@ export async function responderSimulado(request: Request, schemaPath: string): P
       pedido.reparto = { id: pedido.id + 5000, repartidor: { id: repartidor.id, nombre: repartidor.nombre }, fechaAsignacion: new Date().toISOString(), fechaEntrega: null };
       repartidor.pedidosEnReparto++;
       return json(pedido);
+    }
+
+    case "GET /negocio/empleados":
+      return json([...empleados].sort((a, b) => Number(b.esDueno) - Number(a.esDueno) || a.nombre.localeCompare(b.nombre, "es")));
+
+    case "POST /negocio/empleados":
+    case "POST /negocio/repartidores": {
+      if (!perfilNegocio.esDueno) return problema(403, "Solo el dueño del negocio puede crear cuentas.");
+      const alta = (await request.json()) as AltaMiembro;
+      const errores = validarMiembro(alta, true);
+      if (errores.length) return problema(400, "Datos de entrada no válidos", { errores });
+      const email = alta.email.trim().toLowerCase();
+      if (emailEnUso(email)) return problema(409, `Ya existe una cuenta con el email ${email}`);
+      const base = { id: crypto.randomUUID(), nombre: alta.nombre.trim(), email, telefono: alta.telefono?.trim() || null, activo: true };
+      if (schemaPath === "/negocio/empleados") {
+        const nuevo = { ...base, esDueno: false };
+        empleados.push(nuevo);
+        return json(nuevo, 201);
+      }
+      const nuevo = { ...base, disponible: false, pedidosEnReparto: 0, repartosHoy: 0 };
+      repartidores.push(nuevo);
+      return json(nuevo, 201);
+    }
+
+    case "PUT /negocio/empleados/{id}":
+    case "PUT /negocio/repartidores/{id}": {
+      const lista: { id: string; nombre: string; telefono?: string | null }[] = schemaPath.startsWith("/negocio/empleados") ? empleados : repartidores;
+      const miembro = lista.find((m) => m.id === idTexto);
+      if (!miembro) return problema(404, `No existe la cuenta ${idTexto}`);
+      const d = (await request.json()) as DatosMiembro;
+      const errores = validarMiembro(d, false);
+      if (errores.length) return problema(400, "Datos de entrada no válidos", { errores });
+      Object.assign(miembro, { nombre: d.nombre.trim(), telefono: d.telefono?.trim() || null });
+      return json(miembro);
+    }
+
+    case "PATCH /negocio/empleados/{id}/activo":
+    case "PATCH /negocio/repartidores/{id}/activo": {
+      const esEmpleado = schemaPath.startsWith("/negocio/empleados");
+      const miembro = (esEmpleado ? empleados : repartidores).find((m) => m.id === idTexto);
+      if (!miembro) return problema(404, `No existe la cuenta ${idTexto}`);
+      if (esEmpleado && "esDueno" in miembro && miembro.esDueno) return problema(422, "El dueño del negocio siempre está activo.");
+      miembro.activo = ((await request.json()) as { activo: boolean }).activo;
+      if (!miembro.activo && "disponible" in miembro) miembro.disponible = false;
+      return json(miembro);
     }
 
     case "GET /negocio/repartidores": {
