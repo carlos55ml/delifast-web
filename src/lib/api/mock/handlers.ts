@@ -1,5 +1,7 @@
-import type { AltaNegocio, DatosNegocio, EstadoIncidencia, NegocioAdmin, Problema, ResumenAdmin } from "../tipos";
+import { rolDemoNavegador } from "@/lib/auth/demo";
+import type { AltaNegocio, DatosNegocio, EstadoIncidencia, EstadoPedido, NegocioAdmin, PedidoNegocio, Problema, ResumenAdmin } from "../tipos";
 import { incidencias, localidades, negocios, perfilAdmin, repartidoresEnRuta } from "./datos";
+import { miNegocio, pedidos, perfilNegocio, perfilRepartidor, repartidores } from "./datosNegocio";
 
 /**
  * Simulador de la API (estilo MSW): responde en el navegador a las rutas del contrato
@@ -21,6 +23,19 @@ const problema = (status: number, detail: string, extra: Partial<Problema> = {})
 const tituloPorEstado: Record<number, string> = {
   400: "Bad Request", 404: "Not Found", 409: "Conflict", 422: "Unprocessable Entity",
 };
+
+const ACTIVOS: EstadoPedido[] = ["RECIBIDO", "EN_PREPARACION", "LISTO", "EN_REPARTO"];
+
+/** Persona del negocio que hace los cambios en la sesión de demostración. */
+const autorNegocio = () => perfilNegocio.nombre;
+
+function cambiarEstado(pedido: PedidoNegocio, nuevo: EstadoPedido) {
+  pedido.historial.push({ estadoAnterior: pedido.estado, estadoNuevo: nuevo, fecha: new Date().toISOString(), autor: autorNegocio() });
+  pedido.estado = nuevo;
+}
+
+const estadoCambiado = (pedido: PedidoNegocio) =>
+  problema(409, `El pedido ${pedido.codigo} ya está en estado ${pedido.estado}. Recarga el tablero.`);
 
 const esHoy = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 const sinResolver = (estado: EstadoIncidencia) => estado !== "RESUELTA";
@@ -59,10 +74,80 @@ export async function responderSimulado(request: Request, schemaPath: string): P
   const id = Number(url.pathname.split("/")[3]);
   const ruta = `${request.method} ${schemaPath}`;
   const negocio = negocios.find((n) => n.id === id);
+  const idPedido = Number(url.pathname.split("/")[url.pathname.startsWith("/negocio/") ? 3 : 2]);
+  const pedido = pedidos.find((p) => p.id === idPedido);
 
   switch (ruta) {
-    case "GET /me":
-      return json(perfilAdmin);
+    case "GET /me": {
+      const rol = rolDemoNavegador();
+      return json(rol === "NEGOCIO" ? perfilNegocio : rol === "REPARTIDOR" ? perfilRepartidor : perfilAdmin);
+    }
+
+    case "GET /negocio":
+      return json(miNegocio);
+
+    case "PATCH /negocio/abierto": {
+      const { abierto } = (await request.json()) as { abierto: boolean };
+      miNegocio.abiertoManual = abierto;
+      miNegocio.abierto = abierto; // el ejemplo siempre está en horario
+      return json(miNegocio);
+    }
+
+    case "GET /negocio/pedidos": {
+      const estados = url.searchParams.getAll("estado");
+      const filtro = estados.length ? estados : ACTIVOS;
+      return json(pedidos.filter((p) => filtro.includes(p.estado)).sort((a, b) => a.fechaCreacion.localeCompare(b.fechaCreacion)));
+    }
+
+    case "GET /negocio/pedidos/{id}":
+      return pedido ? json(pedido) : problema(404, `No existe el pedido ${idPedido}`);
+
+    case "POST /pedidos/{id}/aceptar": {
+      if (!pedido) return problema(404, `No existe el pedido ${idPedido}`);
+      const { tiempoEstimadoMin } = (await request.json()) as { tiempoEstimadoMin: number };
+      if (!Number.isInteger(tiempoEstimadoMin) || tiempoEstimadoMin < 5 || tiempoEstimadoMin > 120)
+        return problema(400, "Datos de entrada no válidos", { errores: ["tiempoEstimadoMin: debe estar entre 5 y 120"] });
+      if (pedido.estado !== "RECIBIDO") return estadoCambiado(pedido);
+      pedido.tiempoEstimadoMin = tiempoEstimadoMin;
+      cambiarEstado(pedido, "EN_PREPARACION");
+      return json(pedido);
+    }
+
+    case "POST /pedidos/{id}/rechazar": {
+      if (!pedido) return problema(404, `No existe el pedido ${idPedido}`);
+      const { motivo } = (await request.json()) as { motivo: string };
+      if (!motivo?.trim()) return problema(400, "Datos de entrada no válidos", { errores: ["motivo: no puede estar vacío"] });
+      if (pedido.estado !== "RECIBIDO") return estadoCambiado(pedido);
+      pedido.motivoRechazo = motivo.trim();
+      cambiarEstado(pedido, "RECHAZADO");
+      return json(pedido);
+    }
+
+    case "POST /pedidos/{id}/listo": {
+      if (!pedido) return problema(404, `No existe el pedido ${idPedido}`);
+      if (pedido.estado !== "EN_PREPARACION") return estadoCambiado(pedido);
+      cambiarEstado(pedido, "LISTO");
+      return json(pedido);
+    }
+
+    case "POST /pedidos/{id}/asignar": {
+      if (!pedido) return problema(404, `No existe el pedido ${idPedido}`);
+      const { repartidorId } = (await request.json()) as { repartidorId: string };
+      if (pedido.estado !== "LISTO") return estadoCambiado(pedido);
+      const repartidor = repartidores.find((r) => r.id === repartidorId);
+      if (!repartidor || !repartidor.activo || !repartidor.disponible)
+        return problema(422, "El repartidor no está activo y disponible en tu negocio.");
+      cambiarEstado(pedido, "EN_REPARTO");
+      pedido.reparto = { id: pedido.id + 5000, repartidor: { id: repartidor.id, nombre: repartidor.nombre }, fechaAsignacion: new Date().toISOString(), fechaEntrega: null };
+      repartidor.pedidosEnReparto++;
+      return json(pedido);
+    }
+
+    case "GET /negocio/repartidores": {
+      const disponible = url.searchParams.get("disponible") === "true";
+      const lista = disponible ? repartidores.filter((r) => r.activo && r.disponible) : repartidores;
+      return json([...lista].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")));
+    }
 
     case "GET /localidades":
       return json(localidades);
