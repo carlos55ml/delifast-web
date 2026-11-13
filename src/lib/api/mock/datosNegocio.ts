@@ -1,4 +1,4 @@
-import type { CambioEstado, CategoriaCarta, EmpleadoNegocio, EstadoPedido, FranjaHorario, LineaPedido, MetodoPago, MiNegocio, PedidoNegocio, Perfil, RepartidorNegocio } from "../tipos";
+import type { CambioEstado, CategoriaCarta, EmpleadoNegocio, IncidenciaNegocio, EstadoPedido, FranjaHorario, LineaPedido, MetodoPago, MiNegocio, PedidoNegocio, Perfil, RepartidorNegocio } from "../tipos";
 import { localidades, negocios } from "./datos";
 
 /**
@@ -199,3 +199,25 @@ export const pedidosEntrantes: Parameters<typeof crearPedido>[0][] = [
 ];
 
 miNegocio.pedidosHoy += pedidos.length;
+
+/** Incidencias de N05 (pedidos ya entregados de hoy). */
+export const incidenciasNegocio: IncidenciaNegocio[] = [
+  {
+    id: 4, tipo: "CLIENTE_AUSENTE", estado: "ABIERTA", origen: "REPARTIDOR",
+    descripcion: "He llamado dos veces y no contesta. Espero 5 minutos en la puerta.", respuesta: null,
+    fechaCreacion: haceMin(45), fechaResolucion: null, autor: { nombre: "Juan Torres" },
+    pedido: { id: 1036, codigo: "DF-001036", total: 12.4, metodoPago: "EFECTIVO", cliente: { nombre: "María López", telefono: "612 987 654" } },
+  },
+  {
+    id: 3, tipo: "FALTA_PRODUCTO", estado: "ABIERTA", origen: "CLIENTE",
+    descripcion: "Faltan las patatas del menú.", respuesta: null,
+    fechaCreacion: haceMin(67), fechaResolucion: null, autor: { nombre: "Pablo Ruiz" },
+    pedido: { id: 1031, codigo: "DF-001031", total: 17.6, metodoPago: "TARJETA", cliente: { nombre: "Pablo Ruiz", telefono: "688 201 334" } },
+  },
+  {
+    id: 2, tipo: "PRODUCTO_MAL_ESTADO", estado: "RESUELTA", origen: "CLIENTE",
+    descripcion: "El pedido llegó frío.", respuesta: "Lo sentimos. Te devolvemos el importe de las hamburguesas.",
+    fechaCreacion: haceMin(110), fechaResolucion: haceMin(80), autor: { nombre: "Elena Vega" },
+    pedido: { id: 1027, codigo: "DF-001027", total: 21.9, metodoPago: "TARJETA", cliente: { nombre: "Elena Vega", telefono: "699 410 822" } },
+  },
+];

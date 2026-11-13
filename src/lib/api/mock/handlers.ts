@@ -4,7 +4,7 @@ import type {
   PedidoNegocio, Problema, ProductoCarta, ResumenAdmin,
 } from "../tipos";
 import { incidencias, localidades, negocios, perfilAdmin, repartidoresEnRuta } from "./datos";
-import { carta, empleados, miNegocio, pedidos, perfilNegocio, perfilRepartidor, repartidores } from "./datosNegocio";
+import { carta, empleados, incidenciasNegocio, miNegocio, pedidos, perfilNegocio, perfilRepartidor, repartidores } from "./datosNegocio";
 
 /**
  * Simulador de la API (estilo MSW): responde en el navegador a las rutas del contrato
@@ -309,6 +309,27 @@ export async function responderSimulado(request: Request, schemaPath: string): P
       pedido.reparto = { id: pedido.id + 5000, repartidor: { id: repartidor.id, nombre: repartidor.nombre }, fechaAsignacion: new Date().toISOString(), fechaEntrega: null };
       repartidor.pedidosEnReparto++;
       return json(pedido);
+    }
+
+    case "GET /negocio/incidencias": {
+      const estados = url.searchParams.getAll("estado");
+      return json(incidenciasNegocio.filter((i) => estados.length === 0 || estados.includes(i.estado)).sort(porFechaDesc));
+    }
+
+    case "POST /incidencias/{id}/responder":
+    case "POST /incidencias/{id}/resolver": {
+      const idIncidencia = Number(url.pathname.split("/")[2]);
+      const incidencia = incidenciasNegocio.find((i) => i.id === idIncidencia);
+      if (!incidencia) return problema(404, `No existe la incidencia ${idIncidencia}`);
+      if (incidencia.estado === "RESUELTA") return problema(409, "La incidencia ya está resuelta.");
+      const texto = await request.text();
+      const respuesta = (texto ? (JSON.parse(texto) as { respuesta?: string }) : {}).respuesta?.trim();
+      const resolver = schemaPath.endsWith("/resolver");
+      if (!resolver && !respuesta) return problema(400, "Datos de entrada no válidos", { errores: ["respuesta: no puede estar vacía"] });
+      if (respuesta) incidencia.respuesta = respuesta;
+      incidencia.estado = resolver ? "RESUELTA" : "RESPONDIDA";
+      if (resolver) incidencia.fechaResolucion = new Date().toISOString();
+      return json(incidencia);
     }
 
     case "GET /negocio/empleados":

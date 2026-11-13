@@ -1,8 +1,8 @@
 import type { ButtonHTMLAttributes } from "react";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
-  /** Primario = degradado de marca; Fantasma = blanco con borde; Peligro = rojo claro (componente "Botón web"). */
-  tipo?: "primario" | "fantasma" | "peligro";
+  /** Primario = degradado de marca; Secundario = borde rojo; Fantasma = blanco con borde gris; Peligro = rojo claro ("Botón web"). */
+  tipo?: "primario" | "secundario" | "fantasma" | "peligro";
   /** "web" = 40 px (Botón web); "grande" = 52 px a todo el ancho (Botón, usado en el login). */
   tamano?: "web" | "grande";
 };
@@ -14,6 +14,7 @@ export function Boton({ tipo = "primario", tamano = "web", className = "", type 
       : "rounded-[10px] px-[18px] py-2.5 texto-destacado";
   const estilo = {
     primario: "degradado-marca text-white hover:brightness-105",
+    secundario: "border-[1.5px] border-marca-rojo bg-white text-marca-rojo hover:bg-marca-rojo-claro",
     fantasma: "border-[1.5px] border-neutro-borde bg-white text-neutro-texto hover:bg-neutro-fondo",
     peligro: "bg-marca-rojo-claro text-estado-error hover:brightness-95",
   }[tipo];
