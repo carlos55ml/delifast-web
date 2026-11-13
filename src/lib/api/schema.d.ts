@@ -151,13 +151,36 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Datos del negocio del usuario (cabecera del panel)
-         * @description Negocio del claim `negocio_id`. La configuración completa (horarios, logo, envío y mínimo,
-         *     RF-18) se añadirá a este recurso con N07.
-         */
+        /** Datos y configuración del negocio del usuario (cabecera del panel y N07) */
         get: operations["obtenerMiNegocio"];
-        put?: never;
+        /**
+         * Guardar los datos del negocio y, opcionalmente, un logo nuevo (N07, RF-18)
+         * @description La localidad no se cambia aquí (la fija el administrador al dar de alta el negocio).
+         *     Si llega `logo`, sustituye al anterior (el backend borra el viejo de Storage).
+         */
+        put: operations["editarMiNegocio"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/horarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sustituir el horario de apertura completo (N07, RF-18)
+         * @description Reemplaza todas las franjas del negocio. Un día sin franjas está cerrado. Una franja cuyo
+         *     cierre es anterior a la apertura pasa de medianoche (20:00–00:30). Las franjas de un mismo
+         *     día no pueden solaparse.
+         */
+        put: operations["editarHorariosNegocio"];
         post?: never;
         delete?: never;
         options?: never;
@@ -179,11 +202,130 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Abrir o cerrar el negocio a mano (interruptor "Abierto" de la cabecera, RF-18)
+         * Abrir o cerrar el negocio a mano (interruptor "Abierto", RF-18)
          * @description Cambia `negocios.abierto_manual`. Con él a false el negocio no acepta pedidos aunque esté
          *     en horario; con él a true acepta pedidos solo dentro del horario.
          */
         patch: operations["cambiarAbiertoNegocio"];
+        trace?: never;
+    };
+    "/negocio/carta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Carta completa del negocio (N03)
+         * @description Categorías por `orden` con sus productos por nombre, incluidos los agotados. Sin los borrados.
+         */
+        get: operations["obtenerCartaNegocio"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/categorias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Nueva categoría (se añade al final) */
+        post: operations["crearCategoria"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/categorias/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["CategoriaId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Renombrar una categoría */
+        put: operations["editarCategoria"];
+        post?: never;
+        /** Borrar una categoría vacía */
+        delete: operations["borrarCategoria"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/productos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Nuevo producto con foto opcional (N03, RF-17) */
+        post: operations["crearProducto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/productos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProductoId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Editar un producto (y cambiar o quitar su foto)
+         * @description Sin `foto` se conserva la actual, salvo que `datos.quitarFoto` sea true.
+         */
+        put: operations["editarProducto"];
+        post?: never;
+        /**
+         * Borrar un producto
+         * @description Borrado lógico (`activo = false`) para no romper los pedidos antiguos. La foto se borra de Storage.
+         */
+        delete: operations["borrarProducto"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/productos/{id}/disponible": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProductoId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Marcar un producto como disponible o agotado (interruptor de N03) */
+        patch: operations["cambiarDisponibleProducto"];
         trace?: never;
     };
     "/negocio/pedidos": {
@@ -467,13 +609,94 @@ export interface components {
             id: number;
             /** @example Hamburguesería Pepe */
             nombre: string;
+            descripcion?: string | null;
             localidad: components["schemas"]["Localidad"];
+            /** @example C/ Sevilla 24 */
+            direccion: string;
+            /** @example 955 820 123 */
+            telefono: string;
+            /** @description URL pública del logo en Supabase Storage (bucket `logos`). */
+            logoUrl?: string | null;
+            /** @example 1.5 */
+            gastosEnvio: number;
+            /** @example 10 */
+            pedidoMinimo: number;
+            /** @description Franjas de apertura, por día y hora de apertura. */
+            horarios: components["schemas"]["FranjaHorario"][];
             /** @description Si ahora mismo acepta pedidos (en horario y con `abiertoManual`). */
             abierto: boolean;
             /** @description Interruptor "Abierto" de la cabecera. */
             abiertoManual: boolean;
             /** @description Pedidos recibidos hoy (Europe/Madrid), en cualquier estado salvo CANCELADO. */
             pedidosHoy: number;
+        };
+        DatosMiNegocio: {
+            nombre: string;
+            descripcion?: string | null;
+            telefono: string;
+            direccion: string;
+            gastosEnvio: number;
+            pedidoMinimo: number;
+        };
+        FranjaHorario: {
+            /** @description 1 = lunes … 7 = domingo. */
+            dia: number;
+            /** @example 12:30 */
+            apertura: string;
+            /**
+             * @description Distinta de la apertura. Si es anterior, la franja pasa de medianoche.
+             * @example 16:00
+             */
+            cierre: string;
+        };
+        DatosCategoria: {
+            /** @example Hamburguesas */
+            nombre: string;
+        };
+        CategoriaCarta: {
+            /** Format: int64 */
+            id: number;
+            nombre: string;
+            orden: number;
+            productos: components["schemas"]["ProductoCarta"][];
+        };
+        ProductoCarta: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            categoriaId: number;
+            /** @example Hamburguesa clásica */
+            nombre: string;
+            /**
+             * @example Ternera
+             * @example queso
+             * @example lechuga y tomate
+             */
+            descripcion?: string | null;
+            /** @example 6.5 */
+            precio: number;
+            /** @description URL pública de la foto en Supabase Storage (bucket `productos`). */
+            fotoUrl?: string | null;
+            /** @description false = agotado; la app lo muestra pero no deja pedirlo (RF-06). */
+            disponible: boolean;
+        };
+        DatosProducto: {
+            /** Format: int64 */
+            categoriaId: number;
+            nombre: string;
+            descripcion?: string | null;
+            precio: number;
+            disponible: boolean;
+            /** @description Solo al editar. true borra la foto actual (si no llega una nueva). */
+            quitarFoto?: boolean;
+        };
+        FormularioProducto: {
+            datos: components["schemas"]["DatosProducto"];
+            /**
+             * Format: binary
+             * @description JPEG, PNG o WebP de hasta 2 MB.
+             */
+            foto?: string;
         };
         LineaPedido: {
             /**
@@ -616,6 +839,8 @@ export interface components {
     parameters: {
         NegocioId: number;
         PedidoId: number;
+        CategoriaId: number;
+        ProductoId: number;
     };
     requestBodies: never;
     headers: never;
@@ -861,6 +1086,67 @@ export interface operations {
             403: components["responses"]["Prohibido"];
         };
     };
+    editarMiNegocio: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    datos: components["schemas"]["DatosMiNegocio"];
+                    /**
+                     * Format: binary
+                     * @description JPEG, PNG o WebP de hasta 2 MB.
+                     */
+                    logo?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Negocio actualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MiNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    editarHorariosNegocio: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FranjaHorario"][];
+            };
+        };
+        responses: {
+            /** @description Negocio con el horario nuevo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MiNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
     cambiarAbiertoNegocio: {
         parameters: {
             query?: never;
@@ -887,6 +1173,246 @@ export interface operations {
             };
             401: components["responses"]["NoAutenticado"];
             403: components["responses"]["Prohibido"];
+        };
+    };
+    obtenerCartaNegocio: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Carta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriaCarta"][];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    crearCategoria: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatosCategoria"];
+            };
+        };
+        responses: {
+            /** @description Categoría creada (sin productos) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriaCarta"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            /** @description Ya hay una categoría con ese nombre en el negocio */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    editarCategoria: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["CategoriaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatosCategoria"];
+            };
+        };
+        responses: {
+            /** @description Categoría actualizada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriaCarta"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+            /** @description Ya hay una categoría con ese nombre en el negocio */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    borrarCategoria: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["CategoriaId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Borrada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+            /** @description La categoría aún tiene productos; hay que borrarlos o moverlos antes */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    crearProducto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["FormularioProducto"];
+            };
+        };
+        responses: {
+            /** @description Producto creado */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductoCarta"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    editarProducto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProductoId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["FormularioProducto"];
+            };
+        };
+        responses: {
+            /** @description Producto actualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductoCarta"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+        };
+    };
+    borrarProducto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProductoId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Borrado */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+        };
+    };
+    cambiarDisponibleProducto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProductoId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    disponible: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Producto actualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductoCarta"];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
         };
     };
     listarPedidosNegocio: {

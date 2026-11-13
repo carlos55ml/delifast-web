@@ -1,4 +1,4 @@
-import type { CambioEstado, EstadoPedido, LineaPedido, MetodoPago, MiNegocio, PedidoNegocio, Perfil, RepartidorNegocio } from "../tipos";
+import type { CambioEstado, CategoriaCarta, EstadoPedido, FranjaHorario, LineaPedido, MetodoPago, MiNegocio, PedidoNegocio, Perfil, RepartidorNegocio } from "../tipos";
 import { localidades, negocios } from "./datos";
 
 /**
@@ -35,27 +35,73 @@ export const perfilRepartidor: Perfil = {
   esDueno: false,
 };
 
+/** Horario de N07: lunes cerrado; partido el resto, hasta medianoche viernes y sábado. */
+const horarios: FranjaHorario[] = [2, 3, 4, 5, 6, 7].flatMap((dia) => [
+  { dia, apertura: "12:30", cierre: dia >= 6 ? "16:30" : "16:00" },
+  { dia, apertura: "20:00", cierre: dia === 5 || dia === 6 ? "00:00" : "23:30" },
+]);
+
 export const miNegocio: MiNegocio = {
   id: pepe.id,
   nombre: pepe.nombre,
+  descripcion: "Hamburguesas caseras con pan de obrador.",
   localidad: localidades.find((l) => l.nombre === "Osuna")!,
+  direccion: "C/ Sevilla 24",
+  telefono: "955 820 123",
+  logoUrl: null,
+  gastosEnvio: 1.5,
+  pedidoMinimo: 10,
+  horarios,
   abierto: true,
   abiertoManual: true,
   pedidosHoy: 8, // los de antes, ya entregados; abajo se suman los del tablero
 };
 
-/** Precios de la carta de ejemplo. */
-const CARTA: Record<string, number> = {
-  "Menú DeliFast": 8.5,
-  "Nuggets (6 uds.)": 4.2,
-  "Refresco de cola": 1.7,
-  "Hamburguesa clásica": 5.5,
-  "Hamburguesa doble": 7.9,
-  "Hamburguesa de pollo": 6.8,
-  "Patatas fritas": 2.6,
-  "Aros de cebolla": 3,
-  "Bocadillo de lomo": 6.5,
-};
+let siguienteProducto = 1;
+const categoria = (id: number, nombre: string, productos: [nombre: string, descripcion: string, precio: number, disponible?: boolean][]): CategoriaCarta => ({
+  id,
+  nombre,
+  orden: id,
+  productos: productos.map(([nombre, descripcion, precio, disponible = true]) => ({
+    id: siguienteProducto++, categoriaId: id, nombre, descripcion, precio, fotoUrl: null, disponible,
+  })),
+});
+
+/** Carta de N03: 5 categorías y 20 productos. */
+export const carta: CategoriaCarta[] = [
+  categoria(1, "Hamburguesas", [
+    ["Hamburguesa clásica", "Ternera, queso, lechuga y tomate", 6.5],
+    ["Hamburguesa doble", "Doble de ternera, doble de queso y bacon", 8.9],
+    ["Hamburguesa de pollo", "Pollo crujiente, lechuga y mayonesa", 6.9],
+    ["Hamburguesa vegetal", "Burger de garbanzos y verduras asadas", 7.2, false],
+    ["Menú DeliFast", "Hamburguesa clásica, patatas y bebida", 8.5],
+    ["Hamburguesa infantil", "Ternera y queso, tamaño pequeño", 4.9],
+  ]),
+  categoria(2, "Bocadillos", [
+    ["Bocadillo de lomo", "Lomo a la plancha con pimientos", 5.5],
+    ["Bocadillo de calamares", "Calamares fritos con alioli", 6],
+    ["Serranito", "Lomo, jamón serrano y pimiento frito", 6.2],
+    ["Bocadillo vegetal", "Lechuga, tomate, huevo y mayonesa", 4.5],
+  ]),
+  categoria(3, "Patatas y entrantes", [
+    ["Patatas fritas", "Ración de patatas caseras", 2.8],
+    ["Aros de cebolla", "8 unidades con salsa barbacoa", 3.5],
+    ["Nuggets (6 uds.)", "Pollo empanado con salsa a elegir", 4.2],
+  ]),
+  categoria(4, "Bebidas", [
+    ["Refresco de cola", "Lata de 33 cl", 1.7],
+    ["Refresco de naranja", "Lata de 33 cl", 1.7],
+    ["Agua mineral", "Botella de 50 cl", 1.2],
+    ["Cerveza", "Botellín de 33 cl", 1.9],
+    ["Zumo de naranja", "Natural, 25 cl", 2.5],
+  ]),
+  categoria(5, "Postres", [
+    ["Tarta de queso", "Casera, con mermelada de frutos rojos", 3.8],
+    ["Brownie", "Con nueces y bola de helado", 4],
+  ]),
+];
+
+const CARTA: Record<string, number> = Object.fromEntries(carta.flatMap((c) => c.productos.map((p) => [p.nombre, p.precio])));
 
 export const GASTOS_ENVIO = 1.5;
 const redondear = (n: number) => Math.round(n * 100) / 100;
