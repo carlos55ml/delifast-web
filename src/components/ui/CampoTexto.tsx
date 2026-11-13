@@ -1,7 +1,7 @@
 import { useId, type InputHTMLAttributes, type SelectHTMLAttributes } from "react";
 
 const caja =
-  "h-[52px] w-full rounded-xl border border-neutro-borde bg-white px-4 texto-normal text-neutro-texto placeholder:text-neutro-texto-secundario outline-none focus:border-2 focus:border-marca-rojo focus:px-[15px] aria-invalid:border-estado-error";
+  "h-[52px] w-full rounded-xl border border-neutro-borde bg-white px-4 texto-normal text-neutro-texto placeholder:text-neutro-texto-secundario outline-none focus:border-2 focus:border-marca-rojo focus:px-[15px] aria-invalid:border-estado-error disabled:bg-neutro-fondo disabled:text-neutro-texto-secundario";
 
 type Comunes = { etiqueta: string; error?: string };
 

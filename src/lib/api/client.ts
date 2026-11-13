@@ -76,3 +76,31 @@ export async function datos<T>(peticion: Promise<Resultado<T>>): Promise<T> {
   }
   return data as T;
 }
+
+/**
+ * `bodySerializer` para los endpoints multipart (arquitectura 5.5): cada fichero va como
+ * parte binaria y el resto (la parte `datos`) como JSON. Las partes vacías no se envían.
+ * Uso: `api.POST("/negocio/productos", { body: { datos, foto: archivo as unknown as string }, bodySerializer: formulario })`.
+ */
+export function formulario(cuerpo: Record<string, unknown>): FormData {
+  const fd = new FormData();
+  for (const [nombre, valor] of Object.entries(cuerpo)) {
+    if (valor === undefined || valor === null) continue;
+    fd.append(nombre, valor instanceof Blob ? valor : new Blob([JSON.stringify(valor)], { type: "application/json" }));
+  }
+  return fd;
+}
+
+/**
+ * Errores de validación (400) del backend por campo: "precio: debe ser…" → { precio: "debe ser…" }.
+ * Devuelve undefined si el error no es de validación.
+ */
+export function erroresPorCampo(error: unknown): Record<string, string> | undefined {
+  if (!(error instanceof ErrorApi) || error.status !== 400 || !error.problema?.errores) return undefined;
+  const porCampo: Record<string, string> = {};
+  for (const linea of error.problema.errores) {
+    const [campo, ...resto] = linea.split(":");
+    porCampo[campo!.trim()] = resto.join(":").trim();
+  }
+  return porCampo;
+}

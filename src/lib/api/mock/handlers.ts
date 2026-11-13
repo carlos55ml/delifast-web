@@ -1,7 +1,10 @@
 import { rolDemoNavegador } from "@/lib/auth/demo";
-import type { AltaNegocio, DatosNegocio, EstadoIncidencia, EstadoPedido, NegocioAdmin, PedidoNegocio, Problema, ResumenAdmin } from "../tipos";
+import type {
+  AltaNegocio, DatosMiNegocio, DatosNegocio, DatosProducto, EstadoIncidencia, EstadoPedido, FranjaHorario, NegocioAdmin,
+  PedidoNegocio, Problema, ProductoCarta, ResumenAdmin,
+} from "../tipos";
 import { incidencias, localidades, negocios, perfilAdmin, repartidoresEnRuta } from "./datos";
-import { miNegocio, pedidos, perfilNegocio, perfilRepartidor, repartidores } from "./datosNegocio";
+import { carta, miNegocio, pedidos, perfilNegocio, perfilRepartidor, repartidores } from "./datosNegocio";
 
 /**
  * Simulador de la API (estilo MSW): responde en el navegador a las rutas del contrato
@@ -36,6 +39,67 @@ function cambiarEstado(pedido: PedidoNegocio, nuevo: EstadoPedido) {
 
 const estadoCambiado = (pedido: PedidoNegocio) =>
   problema(409, `El pedido ${pedido.codigo} ya está en estado ${pedido.estado}. Recarga el tablero.`);
+
+const TIPOS_IMAGEN = ["image/jpeg", "image/png", "image/webp"];
+const MAX_IMAGEN = 2 * 1024 * 1024;
+
+/** Lee un cuerpo multipart: la parte `datos` (JSON) y el fichero de la parte indicada. */
+async function leerFormulario<T>(request: Request, parteArchivo: string): Promise<{ datos: T; archivo?: File; errores: string[] }> {
+  const fd = await request.formData();
+  const parte = fd.get("datos");
+  const datos = JSON.parse(typeof parte === "string" ? parte : await (parte as Blob).text()) as T;
+  const archivo = fd.get(parteArchivo);
+  const errores: string[] = [];
+  if (archivo instanceof File) {
+    if (!TIPOS_IMAGEN.includes(archivo.type)) errores.push(`${parteArchivo}: debe ser una imagen JPEG, PNG o WebP`);
+    else if (archivo.size > MAX_IMAGEN) errores.push(`${parteArchivo}: no puede pasar de 2 MB`);
+  }
+  return { datos, archivo: archivo instanceof File ? archivo : undefined, errores };
+}
+
+/** En el simulador la "subida a Storage" es una URL local del navegador. */
+const urlLocal = (archivo: File) => URL.createObjectURL(archivo);
+
+function validarProducto(d: Partial<DatosProducto>): string[] {
+  const errores: string[] = [];
+  if (!d.nombre?.trim()) errores.push("nombre: no puede estar vacío");
+  if (typeof d.precio !== "number" || !(d.precio >= 0) || d.precio > 999.99) errores.push("precio: debe estar entre 0 y 999,99");
+  if (!carta.some((c) => c.id === d.categoriaId)) errores.push("categoriaId: la categoría no existe");
+  return errores;
+}
+
+const todosLosProductos = () => carta.flatMap((c) => c.productos);
+
+/** Como el backend: el producto conserva su sitio; si es nuevo o cambia de categoría, va al final. */
+function guardarProducto(producto: ProductoCarta) {
+  const destino = carta.find((c) => c.id === producto.categoriaId)!;
+  const i = destino.productos.findIndex((p) => p.id === producto.id);
+  if (i >= 0) destino.productos[i] = producto;
+  else {
+    carta.forEach((c) => (c.productos = c.productos.filter((p) => p.id !== producto.id)));
+    destino.productos.push(producto);
+  }
+}
+
+const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+const minutos = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3));
+
+function validarHorarios(franjas: FranjaHorario[]): string[] {
+  const errores: string[] = [];
+  franjas.forEach((f, i) => {
+    if (!(f.dia >= 1 && f.dia <= 7)) errores.push(`[${i}].dia: debe estar entre 1 y 7`);
+    if (!HORA.test(f.apertura) || !HORA.test(f.cierre)) errores.push(`[${i}]: las horas van como HH:mm`);
+    else if (f.apertura === f.cierre) errores.push(`[${i}]: la apertura y el cierre no pueden coincidir`);
+  });
+  for (let dia = 1; dia <= 7; dia++) {
+    const delDia = franjas
+      .filter((f) => f.dia === dia && HORA.test(f.apertura) && HORA.test(f.cierre))
+      .map((f) => [minutos(f.apertura), minutos(f.cierre) <= minutos(f.apertura) ? minutos(f.cierre) + 1440 : minutos(f.cierre)] as const)
+      .sort((a, b) => a[0] - b[0]);
+    for (let i = 1; i < delDia.length; i++) if (delDia[i]![0] < delDia[i - 1]![1]) errores.push(`dia ${dia}: hay franjas que se solapan`);
+  }
+  return errores;
+}
 
 const esHoy = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 const sinResolver = (estado: EstadoIncidencia) => estado !== "RESUELTA";
@@ -85,6 +149,96 @@ export async function responderSimulado(request: Request, schemaPath: string): P
 
     case "GET /negocio":
       return json(miNegocio);
+
+    case "PUT /negocio": {
+      const { datos, archivo, errores } = await leerFormulario<DatosMiNegocio>(request, "logo");
+      if (!datos.nombre?.trim()) errores.push("nombre: no puede estar vacío");
+      if (!datos.direccion?.trim()) errores.push("direccion: no puede estar vacía");
+      if (!datos.telefono || datos.telefono.replace(/\D/g, "").length < 9) errores.push("telefono: debe tener al menos 9 cifras");
+      if (!(datos.gastosEnvio >= 0 && datos.gastosEnvio <= 50)) errores.push("gastosEnvio: debe estar entre 0 y 50");
+      if (!(datos.pedidoMinimo >= 0 && datos.pedidoMinimo <= 200)) errores.push("pedidoMinimo: debe estar entre 0 y 200");
+      if (errores.length) return problema(400, "Datos de entrada no válidos", { errores });
+      Object.assign(miNegocio, {
+        nombre: datos.nombre.trim(),
+        descripcion: datos.descripcion?.trim() || null,
+        telefono: datos.telefono.trim(),
+        direccion: datos.direccion.trim(),
+        gastosEnvio: datos.gastosEnvio,
+        pedidoMinimo: datos.pedidoMinimo,
+      });
+      if (archivo) miNegocio.logoUrl = urlLocal(archivo);
+      return json(miNegocio);
+    }
+
+    case "PUT /negocio/horarios": {
+      const franjas = (await request.json()) as FranjaHorario[];
+      const errores = validarHorarios(franjas);
+      if (errores.length) return problema(400, "Datos de entrada no válidos", { errores });
+      miNegocio.horarios = [...franjas].sort((a, b) => a.dia - b.dia || a.apertura.localeCompare(b.apertura));
+      return json(miNegocio);
+    }
+
+    case "GET /negocio/carta":
+      return json([...carta].sort((a, b) => a.orden - b.orden));
+
+    case "POST /negocio/categorias":
+    case "PUT /negocio/categorias/{id}": {
+      const { nombre } = (await request.json()) as { nombre: string };
+      if (!nombre?.trim()) return problema(400, "Datos de entrada no válidos", { errores: ["nombre: no puede estar vacío"] });
+      const editando = request.method === "PUT" ? carta.find((c) => c.id === id) : undefined;
+      if (request.method === "PUT" && !editando) return problema(404, `No existe la categoría ${id}`);
+      if (carta.some((c) => c !== editando && c.nombre.toLowerCase() === nombre.trim().toLowerCase()))
+        return problema(409, `Ya tienes una categoría llamada ${nombre.trim()}`);
+      if (editando) {
+        editando.nombre = nombre.trim();
+        return json(editando);
+      }
+      const nueva = { id: Math.max(0, ...carta.map((c) => c.id)) + 1, nombre: nombre.trim(), orden: Math.max(0, ...carta.map((c) => c.orden)) + 1, productos: [] };
+      carta.push(nueva);
+      return json(nueva, 201);
+    }
+
+    case "DELETE /negocio/categorias/{id}": {
+      const cat = carta.find((c) => c.id === id);
+      if (!cat) return problema(404, `No existe la categoría ${id}`);
+      if (cat.productos.length) return problema(409, `${cat.nombre} aún tiene productos. Bórralos o muévelos a otra categoría antes.`);
+      carta.splice(carta.indexOf(cat), 1);
+      return new Response(null, { status: 204 });
+    }
+
+    case "POST /negocio/productos":
+    case "PUT /negocio/productos/{id}": {
+      const anterior = request.method === "PUT" ? todosLosProductos().find((p) => p.id === id) : undefined;
+      if (request.method === "PUT" && !anterior) return problema(404, `No existe el producto ${id}`);
+      const { datos, archivo, errores } = await leerFormulario<DatosProducto>(request, "foto");
+      errores.push(...validarProducto(datos));
+      if (errores.length) return problema(400, "Datos de entrada no válidos", { errores });
+      const producto: ProductoCarta = {
+        id: anterior?.id ?? Math.max(0, ...todosLosProductos().map((p) => p.id)) + 1,
+        categoriaId: datos.categoriaId,
+        nombre: datos.nombre.trim(),
+        descripcion: datos.descripcion?.trim() || null,
+        precio: Math.round(datos.precio * 100) / 100,
+        disponible: datos.disponible,
+        fotoUrl: archivo ? urlLocal(archivo) : datos.quitarFoto ? null : (anterior?.fotoUrl ?? null),
+      };
+      guardarProducto(producto);
+      return json(producto, anterior ? 200 : 201);
+    }
+
+    case "DELETE /negocio/productos/{id}": {
+      const cat = carta.find((c) => c.productos.some((p) => p.id === id));
+      if (!cat) return problema(404, `No existe el producto ${id}`);
+      cat.productos = cat.productos.filter((p) => p.id !== id);
+      return new Response(null, { status: 204 });
+    }
+
+    case "PATCH /negocio/productos/{id}/disponible": {
+      const producto = todosLosProductos().find((p) => p.id === id);
+      if (!producto) return problema(404, `No existe el producto ${id}`);
+      producto.disponible = ((await request.json()) as { disponible: boolean }).disponible;
+      return json(producto);
+    }
 
     case "PATCH /negocio/abierto": {
       const { abierto } = (await request.json()) as { abierto: boolean };

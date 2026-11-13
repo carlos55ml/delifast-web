@@ -91,3 +91,13 @@ export function iniciales(nombre: string): string {
 export function plural(n: number, singular: string, pluralTexto = `${singular}s`): string {
   return `${n} ${n === 1 ? singular : pluralTexto}`;
 }
+
+/** Importe escrito a mano: "12,5" o "12.50" → 12.5; NaN si no es un importe válido. */
+export function leerImporte(texto: string): number {
+  return /^\d+([.,]\d{1,2})?$/.test(texto.trim()) ? Number(texto.trim().replace(",", ".")) : NaN;
+}
+
+/** Importe para un campo editable: 1.5 → "1,50". */
+export function importeEditable(importe: number): string {
+  return importe.toFixed(2).replace(".", ",");
+}

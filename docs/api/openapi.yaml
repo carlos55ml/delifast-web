@@ -337,7 +337,7 @@ paths:
       tags: [Negocio · Carta]
       operationId: obtenerCartaNegocio
       summary: Carta completa del negocio (N03)
-      description: Categorías por `orden` con sus productos por nombre, incluidos los agotados. Sin los borrados.
+      description: Categorías por `orden` con sus productos en el orden en que se crearon (id), incluidos los agotados. Sin los borrados.
       responses:
         "200":
           description: Carta

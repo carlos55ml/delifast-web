@@ -4,7 +4,7 @@ export type NombreIcono =
   | "resumen" | "resumen-activo" | "negocios" | "negocios-activo" | "incidencias" | "incidencias-activo"
   | "pedidos" | "pedidos-activo" | "carta" | "carta-activo" | "estadisticas" | "estadisticas-activo"
   | "equipo" | "equipo-activo" | "configuracion" | "configuracion-activo"
-  | "telefono" | "ubicacion" | "nota";
+  | "telefono" | "ubicacion" | "nota" | "papelera";
 
 export function Icono({ nombre, className = "" }: { nombre: NombreIcono; className?: string }) {
   return (
