@@ -771,6 +771,141 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/negocios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Negocios activos para el cliente (RF-05)
+         * @description Activos, con los abiertos primero y luego por nombre. Público.
+         */
+        get: operations["listarNegocios"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocios/{id}/carta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["NegocioId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Carta de un negocio para el cliente (RF-06)
+         * @description Categorías por `orden` con sus productos en orden de creación, incluidos los agotados
+         *     (`disponible: false`). Sin los productos borrados ni las categorías vacías. Público.
+         *     Un negocio suspendido responde 404.
+         */
+        get: operations["obtenerCartaCliente"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/direcciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Direcciones del cliente (RF-04)
+         * @description La predeterminada primero y luego por alias.
+         */
+        get: operations["listarDirecciones"];
+        put?: never;
+        /**
+         * Añadir una dirección (RF-04)
+         * @description La primera dirección del cliente queda como predeterminada aunque no se pida.
+         */
+        post: operations["crearDireccion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/direcciones/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["DireccionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Editar una dirección (o marcarla como predeterminada) */
+        put: operations["editarDireccion"];
+        post?: never;
+        /**
+         * Borrar una dirección
+         * @description Los pedidos antiguos conservan la dirección copiada. Si era la predeterminada, pasa a serlo otra.
+         */
+        delete: operations["borrarDireccion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pedidos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pedidos del cliente, del más reciente al más antiguo (RF-10) */
+        get: operations["listarMisPedidos"];
+        put?: never;
+        /**
+         * Hacer un pedido (RF-08)
+         * @description El backend toma precios y gastos de envío de la base de datos, calcula subtotal y total y
+         *     copia la dirección y el teléfono del cliente. Las líneas repetidas del mismo producto se
+         *     suman (máx. 50 unidades por producto). Errores 422: negocio cerrado, por debajo del pedido
+         *     mínimo, producto agotado o que no es de la carta, dirección que no es del cliente o de otra
+         *     localidad, o cliente sin teléfono en su perfil. Negocio inexistente o suspendido: 404.
+         */
+        post: operations["crearPedido"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pedidos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        /** Un pedido del cliente con su historial (seguimiento, RF-09) */
+        get: operations["obtenerMiPedido"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1251,6 +1386,118 @@ export interface components {
                 total: number;
             };
         };
+        NegocioCliente: {
+            /** Format: int64 */
+            id: number;
+            nombre: string;
+            descripcion?: string | null;
+            direccion: string;
+            telefono: string;
+            localidad: components["schemas"]["Localidad"];
+            logoUrl?: string | null;
+            gastosEnvio: number;
+            pedidoMinimo: number;
+            /** @description Si ahora mismo acepta pedidos (horario + interruptor del negocio). */
+            abierto: boolean;
+        };
+        ProductoCliente: {
+            /** Format: int64 */
+            id: number;
+            nombre: string;
+            descripcion?: string | null;
+            precio: number;
+            fotoUrl?: string | null;
+            /** @description false = agotado; se muestra pero no se puede pedir (RF-06). */
+            disponible: boolean;
+        };
+        CartaCliente: {
+            negocio: components["schemas"]["NegocioCliente"];
+            categorias: {
+                /** Format: int64 */
+                id: number;
+                nombre: string;
+                productos: components["schemas"]["ProductoCliente"][];
+            }[];
+        };
+        Direccion: {
+            /** Format: int64 */
+            id: number;
+            /** @example Casa */
+            alias: string;
+            /**
+             * @example Av. de la Constitución 8
+             * @example 1º A
+             */
+            calle: string;
+            /** @example 41640 */
+            codigoPostal: string;
+            localidad: components["schemas"]["Localidad"];
+            /** @example Timbre 1ºA */
+            indicaciones?: string | null;
+            predeterminada: boolean;
+        };
+        DatosDireccion: {
+            alias: string;
+            calle: string;
+            codigoPostal: string;
+            /** Format: int64 */
+            localidadId: number;
+            indicaciones?: string | null;
+            /** @description true la marca como predeterminada y desmarca la anterior. Por defecto false. */
+            predeterminada?: boolean;
+        };
+        NuevoPedido: {
+            /** Format: int64 */
+            negocioId: number;
+            /** Format: int64 */
+            direccionId: number;
+            metodoPago: components["schemas"]["MetodoPago"];
+            nota?: string | null;
+            lineas: {
+                /** Format: int64 */
+                productoId: number;
+                cantidad: number;
+            }[];
+        };
+        PedidoCliente: {
+            /** Format: int64 */
+            id: number;
+            /** @example DF-001048 */
+            codigo: string;
+            negocio: {
+                /** Format: int64 */
+                id: number;
+                nombre: string;
+            };
+            estado: components["schemas"]["EstadoPedido"];
+            metodoPago: components["schemas"]["MetodoPago"];
+            nota?: string | null;
+            /** @description Copia de la dirección al hacer el pedido ("calle, CP Localidad (indicaciones)"). */
+            direccionEntrega: string;
+            subtotal: number;
+            gastosEnvio: number;
+            total: number;
+            tiempoEstimadoMin?: number | null;
+            motivoRechazo?: string | null;
+            /** Format: date-time */
+            fechaCreacion: string;
+            lineas: {
+                /**
+                 * Format: int64
+                 * @description Nulo si el producto se borró después.
+                 */
+                productoId?: number | null;
+                nombreProducto: string;
+                precioUnitario: number;
+                cantidad: number;
+            }[];
+            /** @description Cambios de estado, del más antiguo al más reciente. */
+            historial: {
+                estado: components["schemas"]["EstadoPedido"];
+                /** Format: date-time */
+                fecha: string;
+            }[];
+        };
     };
     responses: {
         /** @description Datos de entrada no válidos */
@@ -1312,6 +1559,7 @@ export interface components {
         };
     };
     parameters: {
+        DireccionId: number;
         NegocioId: number;
         PedidoId: number;
         CategoriaId: number;
@@ -2643,6 +2891,240 @@ export interface operations {
                 };
             };
             400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+        };
+    };
+    listarNegocios: {
+        parameters: {
+            query?: {
+                /** @description Solo los de esa localidad. Sin él, todos los activos. */
+                localidadId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Negocios */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NegocioCliente"][];
+                };
+            };
+        };
+    };
+    obtenerCartaCliente: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["NegocioId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Carta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CartaCliente"];
+                };
+            };
+            404: components["responses"]["NoEncontrado"];
+        };
+    };
+    listarDirecciones: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Direcciones */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Direccion"][];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    crearDireccion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatosDireccion"];
+            };
+        };
+        responses: {
+            /** @description Dirección creada */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Direccion"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    editarDireccion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["DireccionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatosDireccion"];
+            };
+        };
+        responses: {
+            /** @description Dirección actualizada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Direccion"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+        };
+    };
+    borrarDireccion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["DireccionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Borrada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+        };
+    };
+    listarMisPedidos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pedidos */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PedidoCliente"][];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    crearPedido: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NuevoPedido"];
+            };
+        };
+        responses: {
+            /** @description Pedido creado (RECIBIDO) */
+            201: {
+                headers: {
+                    /** @description URL del pedido creado */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PedidoCliente"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+            /** @description El pedido incumple una regla de negocio */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    obtenerMiPedido: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pedido */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PedidoCliente"];
+                };
+            };
             401: components["responses"]["NoAutenticado"];
             403: components["responses"]["Prohibido"];
             404: components["responses"]["NoEncontrado"];
