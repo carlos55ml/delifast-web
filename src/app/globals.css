@@ -8,18 +8,25 @@
   --color-marca-rojo: #d63031;
   --color-marca-naranja: #f57c00;
   --color-marca-rojo-claro: #fdecea;
+  --color-marca-naranja-texto: #b34f00;
 
   --color-neutro-texto: #1e1e1e;
   --color-neutro-texto-secundario: #6b6b6b;
   --color-neutro-borde: #e6e6e6;
   --color-neutro-fondo: #fafafa;
   --color-neutro-gris: #f0f0f0;
+  --color-neutro-columna: #f1f1f1;
 
   --color-estado-exito: #2e9e5b;
   --color-estado-exito-texto: #237a46;
   --color-estado-exito-fondo: #e5f5eb;
+  --color-estado-aviso: #f2a900;
   --color-estado-aviso-texto: #8a6100;
   --color-estado-aviso-fondo: #fff5d9;
+  --color-estado-nota-fondo: #fff7e0;
+  --color-estado-listo: #2563eb;
+  --color-estado-listo-texto: #1d4ed8;
+  --color-estado-listo-fondo: #e8f0fe;
   --color-estado-error: #c62828;
 
   --shadow-tarjeta: 0 4px 16px 0 rgb(0 0 0 / 0.08);

@@ -1,8 +1,9 @@
-export default function Page() {
-  return (
-    <main className="p-8">
-      <h1 className="text-2xl font-bold">Panel del negocio</h1>
-      <p className="text-zinc-500">En construcción.</p>
-    </main>
-  );
+import type { Metadata } from "next";
+import { VistaPedidos } from "@/components/negocio/pedidos/VistaPedidos";
+
+export const metadata: Metadata = { title: "Pedidos" };
+
+/** N01 Pedidos (tablero en tiempo real). */
+export default function PaginaPedidos() {
+  return <VistaPedidos />;
 }

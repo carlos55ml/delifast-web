@@ -1,14 +1,41 @@
-import type { EstadoIncidencia, OrigenIncidencia, TipoIncidencia } from "@/lib/api/tipos";
+import type { EstadoIncidencia, EstadoPedido, LineaPedido, MetodoPago, OrigenIncidencia, TipoIncidencia } from "@/lib/api/tipos";
 
 const ZONA = "Europe/Madrid";
 
-/** "Jueves 6 de noviembre de 2026" */
-export function fechaLarga(fecha: Date): string {
-  const texto = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: ZONA })
+/** "Jueves 6 de noviembre de 2026" (o sin el año: "Jueves 6 de noviembre") */
+export function fechaLarga(fecha: Date, { conAnio = true } = {}): string {
+  const texto = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", year: conAnio ? "numeric" : undefined, timeZone: ZONA })
     .format(fecha)
     .replace(",", "");
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
+
+const formatoEuros = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
+
+/** 15.9 → "15,90 €" */
+export function euros(importe: number): string {
+  return formatoEuros.format(importe);
+}
+
+/** "2× Hamburguesa clásica · 1× Patatas fritas" */
+export function resumenLineas(lineas: LineaPedido[]): string {
+  return lineas.map((l) => `${l.cantidad}× ${l.nombreProducto}`).join(" · ");
+}
+
+export const TEXTO_ESTADO_PEDIDO: Record<EstadoPedido, string> = {
+  RECIBIDO: "Recibido",
+  EN_PREPARACION: "Preparando",
+  LISTO: "Listo",
+  EN_REPARTO: "En reparto",
+  ENTREGADO: "Entregado",
+  RECHAZADO: "Rechazado",
+  CANCELADO: "Cancelado",
+};
+
+export const TEXTO_METODO_PAGO: Record<MetodoPago, string> = {
+  EFECTIVO: "Efectivo",
+  TARJETA: "Tarjeta",
+};
 
 const dia = (fecha: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA }).format(fecha);
 
