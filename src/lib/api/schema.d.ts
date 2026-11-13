@@ -144,6 +144,182 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/negocio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Datos del negocio del usuario (cabecera del panel)
+         * @description Negocio del claim `negocio_id`. La configuración completa (horarios, logo, envío y mínimo,
+         *     RF-18) se añadirá a este recurso con N07.
+         */
+        get: operations["obtenerMiNegocio"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/abierto": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Abrir o cerrar el negocio a mano (interruptor "Abierto" de la cabecera, RF-18)
+         * @description Cambia `negocios.abierto_manual`. Con él a false el negocio no acepta pedidos aunque esté
+         *     en horario; con él a true acepta pedidos solo dentro del horario.
+         */
+        patch: operations["cambiarAbiertoNegocio"];
+        trace?: never;
+    };
+    "/negocio/pedidos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pedidos del negocio (tablero N01, RF-14) */
+        get: operations["listarPedidosNegocio"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/pedidos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        /** Detalle de un pedido con su historial de estados (N02, RF-16) */
+        get: operations["obtenerPedidoNegocio"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pedidos/{id}/aceptar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aceptar un pedido con tiempo estimado (RECIBIDO → EN_PREPARACION, RF-15) */
+        post: operations["aceptarPedido"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pedidos/{id}/rechazar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rechazar un pedido con motivo (RECIBIDO → RECHAZADO, RF-15) */
+        post: operations["rechazarPedido"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pedidos/{id}/listo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marcar como listo (EN_PREPARACION → LISTO, RF-16) */
+        post: operations["marcarPedidoListo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pedidos/{id}/asignar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Asignar un repartidor a un pedido listo (LISTO → EN_REPARTO, N08, RF-20)
+         * @description En una transacción con bloqueo del pedido (arquitectura 5.4): comprueba que el repartidor es
+         *     del negocio, está activo y disponible, crea el reparto y pasa el pedido a EN_REPARTO.
+         *     Si dos personas del negocio lo asignan a la vez, la segunda recibe 409.
+         */
+        post: operations["asignarRepartidor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/repartidores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Repartidores del negocio (selector de N08; gestión completa en N04, RF-19) */
+        get: operations["listarRepartidoresNegocio"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -156,6 +332,13 @@ export interface components {
         TipoIncidencia: "FALTA_PRODUCTO" | "RETRASO" | "PRODUCTO_MAL_ESTADO" | "CLIENTE_AUSENTE" | "DIRECCION_INCORRECTA" | "OTRA";
         /** @enum {string} */
         OrigenIncidencia: "CLIENTE" | "REPARTIDOR";
+        /** @enum {string} */
+        EstadoPedido: "RECIBIDO" | "EN_PREPARACION" | "LISTO" | "EN_REPARTO" | "ENTREGADO" | "RECHAZADO" | "CANCELADO";
+        /**
+         * @description Siempre se paga al repartidor en la entrega, en efectivo o con tarjeta (datáfono).
+         * @enum {string}
+         */
+        MetodoPago: "EFECTIVO" | "TARJETA";
         /** @description ProblemDetail (RFC 9457) de Spring. */
         Problema: {
             type?: string;
@@ -279,6 +462,106 @@ export interface components {
             /** @description Las 5 últimas incidencias sin resolver. */
             incidenciasRecientes: components["schemas"]["IncidenciaAdmin"][];
         };
+        MiNegocio: {
+            /** Format: int64 */
+            id: number;
+            /** @example Hamburguesería Pepe */
+            nombre: string;
+            localidad: components["schemas"]["Localidad"];
+            /** @description Si ahora mismo acepta pedidos (en horario y con `abiertoManual`). */
+            abierto: boolean;
+            /** @description Interruptor "Abierto" de la cabecera. */
+            abiertoManual: boolean;
+            /** @description Pedidos recibidos hoy (Europe/Madrid), en cualquier estado salvo CANCELADO. */
+            pedidosHoy: number;
+        };
+        LineaPedido: {
+            /**
+             * @description Copia del nombre al hacer el pedido.
+             * @example Menú DeliFast
+             */
+            nombreProducto: string;
+            /** @example 8.5 */
+            precioUnitario: number;
+            cantidad: number;
+            /** @description precioUnitario × cantidad. */
+            importe: number;
+        };
+        CambioEstado: {
+            /** @description Nulo en el primer registro (creación del pedido). */
+            estadoAnterior?: components["schemas"]["EstadoPedido"] | null;
+            estadoNuevo: components["schemas"]["EstadoPedido"];
+            /** Format: date-time */
+            fecha: string;
+            /** @description Nombre de quien hizo el cambio (cliente, persona del negocio o repartidor). */
+            autor?: string | null;
+        };
+        RepartoPedido: {
+            /** Format: int64 */
+            id: number;
+            repartidor: {
+                /** Format: uuid */
+                id: string;
+                nombre: string;
+            };
+            /** Format: date-time */
+            fechaAsignacion: string;
+            /** Format: date-time */
+            fechaEntrega?: string | null;
+        };
+        PedidoNegocio: {
+            /** Format: int64 */
+            id: number;
+            /** @example DF-001043 */
+            codigo: string;
+            estado: components["schemas"]["EstadoPedido"];
+            /** Format: date-time */
+            fechaCreacion: string;
+            cliente: {
+                /** @example Antonio Pérez */
+                nombre: string;
+            };
+            /**
+             * @description Copia de la dirección al hacer el pedido, con la localidad.
+             * @example Av. de la Constitución 8
+             * @example 1º A · Osuna
+             */
+            direccionEntrega: string;
+            /** @example 612 345 678 */
+            telefonoContacto: string;
+            metodoPago: components["schemas"]["MetodoPago"];
+            /**
+             * @example Sin cebolla en el menú
+             * @example por favor.
+             */
+            nota?: string | null;
+            lineas: components["schemas"]["LineaPedido"][];
+            subtotal: number;
+            gastosEnvio: number;
+            total: number;
+            /** @description Se fija al aceptar. */
+            tiempoEstimadoMin?: number | null;
+            motivoRechazo?: string | null;
+            /** @description Solo desde EN_REPARTO. */
+            reparto?: components["schemas"]["RepartoPedido"] | null;
+            /** @description Cambios de estado, del más antiguo al más reciente (RF-16). */
+            historial: components["schemas"]["CambioEstado"][];
+        };
+        RepartidorNegocio: {
+            /** Format: uuid */
+            id: string;
+            /** @example Marta Díaz */
+            nombre: string;
+            /** Format: email */
+            email: string;
+            telefono?: string | null;
+            /** @description false = desactivado por el negocio; no puede iniciar sesión. */
+            activo: boolean;
+            /** @description Lo marca el propio repartidor desde su perfil (R06). */
+            disponible: boolean;
+            /** @description Repartos suyos que siguen EN_REPARTO. */
+            pedidosEnReparto: number;
+        };
     };
     responses: {
         /** @description Datos de entrada no válidos */
@@ -317,9 +600,22 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problema"];
             };
         };
+        /**
+         * @description El pedido ya no está en el estado que exige la acción (otra persona del negocio se adelantó,
+         *     o el cliente lo canceló). La web vuelve a cargar el tablero.
+         */
+        EstadoCambiado: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problema"];
+            };
+        };
     };
     parameters: {
         NegocioId: number;
+        PedidoId: number;
     };
     requestBodies: never;
     headers: never;
@@ -537,6 +833,280 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IncidenciaAdmin"][];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    obtenerMiNegocio: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Negocio */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MiNegocio"];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    cambiarAbiertoNegocio: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    abierto: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Negocio actualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MiNegocio"];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    listarPedidosNegocio: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Uno o varios estados (`?estado=RECIBIDO&estado=LISTO`). Sin él, los activos:
+                 *     RECIBIDO, EN_PREPARACION, LISTO y EN_REPARTO (las cuatro columnas del tablero).
+                 */
+                estado?: components["schemas"]["EstadoPedido"][];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pedidos, del más antiguo al más reciente */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PedidoNegocio"][];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    obtenerPedidoNegocio: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pedido */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PedidoNegocio"];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+        };
+    };
+    aceptarPedido: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description Minutos hasta la entrega que verá el cliente. La web ofrece 15, 25, 35 y 45.
+                     * @example 25
+                     */
+                    tiempoEstimadoMin: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Pedido aceptado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PedidoNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+            409: components["responses"]["EstadoCambiado"];
+        };
+    };
+    rechazarPedido: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description Lo ve el cliente en la app.
+                     * @example Nos hemos quedado sin pan de hamburguesa.
+                     */
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Pedido rechazado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PedidoNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+            409: components["responses"]["EstadoCambiado"];
+        };
+    };
+    marcarPedidoListo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pedido listo para asignar */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PedidoNegocio"];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+            409: components["responses"]["EstadoCambiado"];
+        };
+    };
+    asignarRepartidor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PedidoId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    repartidorId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Pedido en reparto */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PedidoNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+            409: components["responses"]["EstadoCambiado"];
+            /** @description El repartidor no es del negocio, está desactivado o no está disponible */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    listarRepartidoresNegocio: {
+        parameters: {
+            query?: {
+                /**
+                 * @description `true` = solo activos y disponibles (los que se pueden asignar). Sin él, todos los del
+                 *     negocio, también los desactivados.
+                 */
+                disponible?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Repartidores ordenados por nombre */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartidorNegocio"][];
                 };
             };
             401: components["responses"]["NoAutenticado"];
