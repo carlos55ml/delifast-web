@@ -655,6 +655,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/repartidor/perfil": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Perfil del repartidor con su disponibilidad y su actividad de hoy (R06) */
+        get: operations["obtenerPerfilRepartidor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repartidor/disponible": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Marcarse como disponible o no para repartos (R06, arquitectura 5.4) */
+        patch: operations["cambiarDisponibleRepartidor"];
+        trace?: never;
+    };
+    "/repartidor/repartos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mis pedidos (R01 y R05, RF-23) */
+        get: operations["listarRepartosRepartidor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repartidor/repartos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["RepartoId"];
+            };
+            cookie?: never;
+        };
+        /** Detalle de un reparto (R02, RF-24) */
+        get: operations["obtenerRepartoRepartidor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repartos/{id}/entregar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["RepartoId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirmar entrega y cobro (R03, RF-25)
+         * @description Pasa el pedido a ENTREGADO, guarda la hora de entrega (O3), el método de cobro real y
+         *     `cobro_confirmado = true`. El método puede no coincidir con el que eligió el cliente.
+         */
+        post: operations["entregarReparto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repartos/{id}/incidencias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["RepartoId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Comunicar una incidencia de reparto (R04, RF-26)
+         * @description Crea la incidencia con `origen = REPARTIDOR` sobre el pedido del reparto; el negocio la ve
+         *     al momento en N05. No cambia el estado del pedido.
+         */
+        post: operations["comunicarIncidenciaReparto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1076,6 +1192,65 @@ export interface components {
                 unidades: number;
             }[];
         };
+        PerfilRepartidor: {
+            /** Format: uuid */
+            id: string;
+            /** @example Marta Díaz */
+            nombre: string;
+            /** Format: email */
+            email: string;
+            telefono?: string | null;
+            negocio: {
+                /** Format: int64 */
+                id: number;
+                nombre: string;
+                /** @example Osuna */
+                localidad: string;
+            };
+            disponible: boolean;
+            /** @description Asignados hoy, entregados o no. */
+            repartosHoy: number;
+            /** @description Repartos EN_REPARTO ahora. */
+            enCurso: number;
+        };
+        RepartoRepartidor: {
+            /** Format: int64 */
+            id: number;
+            /**
+             * @description Estado del pedido del reparto.
+             * @enum {string}
+             */
+            estado: "EN_REPARTO" | "ENTREGADO";
+            /** Format: date-time */
+            fechaAsignacion: string;
+            /** Format: date-time */
+            fechaEntrega?: string | null;
+            /** @description Cómo cobró de verdad el repartidor (al entregar). */
+            metodoCobro?: components["schemas"]["MetodoPago"] | null;
+            pedido: {
+                /** Format: int64 */
+                id: number;
+                codigo: string;
+                cliente: {
+                    nombre: string;
+                };
+                /**
+                 * @example C/ Carrera 12
+                 * @example 2º B · Osuna (Sevilla)
+                 */
+                direccionEntrega: string;
+                /** @description De la dirección del cliente, si la app guardó la posición. Para el mapa (RF-24). */
+                latitud?: number | null;
+                longitud?: number | null;
+                telefonoContacto: string;
+                metodoPago: components["schemas"]["MetodoPago"];
+                nota?: string | null;
+                lineas: components["schemas"]["LineaPedido"][];
+                subtotal: number;
+                gastosEnvio: number;
+                total: number;
+            };
+        };
     };
     responses: {
         /** @description Datos de entrada no válidos */
@@ -1141,6 +1316,7 @@ export interface components {
         PedidoId: number;
         CategoriaId: number;
         ProductoId: number;
+        RepartoId: number;
         IncidenciaId: number;
         /** @description Id de la cuenta (el de `auth.users` y `perfiles`). */
         UsuarioId: string;
@@ -2303,6 +2479,173 @@ export interface operations {
             400: components["responses"]["Validacion"];
             401: components["responses"]["NoAutenticado"];
             403: components["responses"]["Prohibido"];
+        };
+    };
+    obtenerPerfilRepartidor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Perfil */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerfilRepartidor"];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    cambiarDisponibleRepartidor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    disponible: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Perfil actualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerfilRepartidor"];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    listarRepartosRepartidor: {
+        parameters: {
+            query?: {
+                /** @description EN_REPARTO = los que tiene que entregar; ENTREGADO = los entregados hoy. Sin él, los dos. */
+                estado?: "EN_REPARTO" | "ENTREGADO";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Repartos, del más reciente al más antiguo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartoRepartidor"][];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    obtenerRepartoRepartidor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["RepartoId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reparto */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartoRepartidor"];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+        };
+    };
+    entregarReparto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["RepartoId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    metodoCobro: components["schemas"]["MetodoPago"];
+                };
+            };
+        };
+        responses: {
+            /** @description Reparto entregado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartoRepartidor"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+            409: components["responses"]["EstadoCambiado"];
+        };
+    };
+    comunicarIncidenciaReparto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["RepartoId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    tipo: components["schemas"]["TipoIncidencia"];
+                    /** @description Opcional. Si falta, el backend guarda el nombre del tipo. */
+                    descripcion?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Incidencia creada */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidenciaNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
         };
     };
 }
