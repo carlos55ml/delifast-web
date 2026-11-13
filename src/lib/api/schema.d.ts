@@ -218,7 +218,7 @@ export interface paths {
         };
         /**
          * Carta completa del negocio (N03)
-         * @description Categorías por `orden` con sus productos por nombre, incluidos los agotados. Sin los borrados.
+         * @description Categorías por `orden` con sus productos en el orden en que se crearon (id), incluidos los agotados. Sin los borrados.
          */
         get: operations["obtenerCartaNegocio"];
         put?: never;
@@ -452,14 +452,123 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Repartidores del negocio (selector de N08; gestión completa en N04, RF-19) */
+        /** Repartidores del negocio (N04 y selector de N08) */
         get: operations["listarRepartidoresNegocio"];
         put?: never;
+        /** Crear la cuenta de un repartidor (solo el dueño, RF-19) */
+        post: operations["altaRepartidor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/repartidores/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id de la cuenta (el de `auth.users` y `perfiles`). */
+                id: components["parameters"]["UsuarioId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Corregir el nombre o el teléfono de un repartidor
+         * @description El email no se cambia (es el de su cuenta).
+         */
+        put: operations["editarRepartidor"];
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/negocio/repartidores/{id}/activo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id de la cuenta (el de `auth.users` y `perfiles`). */
+                id: components["parameters"]["UsuarioId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Activar o desactivar un repartidor (RF-19)
+         * @description Desactivado no puede iniciar sesión, no aparece en el selector de N08 y se le cierran las
+         *     sesiones. Sus repartos EN_REPARTO siguen asignados a él.
+         */
+        patch: operations["cambiarActivoRepartidor"];
+        trace?: never;
+    };
+    "/negocio/empleados": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Personas del negocio (dueño y empleados, N04) */
+        get: operations["listarEmpleadosNegocio"];
+        put?: never;
+        /** Crear la cuenta de un empleado (solo el dueño, RF-19 ampliado) */
+        post: operations["altaEmpleado"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/empleados/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id de la cuenta (el de `auth.users` y `perfiles`). */
+                id: components["parameters"]["UsuarioId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Corregir el nombre o el teléfono de un empleado (o del dueño) */
+        put: operations["editarEmpleado"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/negocio/empleados/{id}/activo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id de la cuenta (el de `auth.users` y `perfiles`). */
+                id: components["parameters"]["UsuarioId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Activar o desactivar un empleado
+         * @description El dueño está siempre activo (422 si se intenta desactivar).
+         */
+        patch: operations["cambiarActivoEmpleado"];
         trace?: never;
     };
 }
@@ -777,6 +886,7 @@ export interface components {
             nombre: string;
             /** Format: email */
             email: string;
+            /** @example 655 333 444 */
             telefono?: string | null;
             /** @description false = desactivado por el negocio; no puede iniciar sesión. */
             activo: boolean;
@@ -784,6 +894,28 @@ export interface components {
             disponible: boolean;
             /** @description Repartos suyos que siguen EN_REPARTO. */
             pedidosEnReparto: number;
+            /** @description Repartos asignados hoy (Europe/Madrid), entregados o no. */
+            repartosHoy: number;
+        };
+        EmpleadoNegocio: {
+            /** Format: uuid */
+            id: string;
+            /** @example Ana Moreno */
+            nombre: string;
+            /** Format: email */
+            email: string;
+            telefono?: string | null;
+            esDueno: boolean;
+            /** @description El dueño siempre está activo. */
+            activo: boolean;
+        };
+        DatosMiembro: {
+            nombre: string;
+            telefono?: string | null;
+        };
+        AltaMiembro: components["schemas"]["DatosMiembro"] & {
+            /** Format: email */
+            email: string;
         };
     };
     responses: {
@@ -823,6 +955,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problema"];
             };
         };
+        /** @description Ya existe una cuenta con ese email */
+        EmailRegistrado: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problema"];
+            };
+        };
         /**
          * @description El pedido ya no está en el estado que exige la acción (otra persona del negocio se adelantó,
          *     o el cliente lo canceló). La web vuelve a cargar el tablero.
@@ -841,6 +982,8 @@ export interface components {
         PedidoId: number;
         CategoriaId: number;
         ProductoId: number;
+        /** @description Id de la cuenta (el de `auth.users` y `perfiles`). */
+        UsuarioId: string;
     };
     requestBodies: never;
     headers: never;
@@ -1615,8 +1758,8 @@ export interface operations {
         parameters: {
             query?: {
                 /**
-                 * @description `true` = solo activos y disponibles (los que se pueden asignar). Sin él, todos los del
-                 *     negocio, también los desactivados.
+                 * @description `true` = solo activos y disponibles (los que se pueden asignar, N08). Sin él, todos los
+                 *     del negocio, también los desactivados.
                  */
                 disponible?: boolean;
             };
@@ -1637,6 +1780,235 @@ export interface operations {
             };
             401: components["responses"]["NoAutenticado"];
             403: components["responses"]["Prohibido"];
+        };
+    };
+    altaRepartidor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AltaMiembro"];
+            };
+        };
+        responses: {
+            /** @description Repartidor creado; recibe un email para crear su contraseña */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartidorNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            /** @description No es el dueño del negocio */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            409: components["responses"]["EmailRegistrado"];
+        };
+    };
+    editarRepartidor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id de la cuenta (el de `auth.users` y `perfiles`). */
+                id: components["parameters"]["UsuarioId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatosMiembro"];
+            };
+        };
+        responses: {
+            /** @description Repartidor actualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartidorNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+        };
+    };
+    cambiarActivoRepartidor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id de la cuenta (el de `auth.users` y `perfiles`). */
+                id: components["parameters"]["UsuarioId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    activo: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Repartidor actualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepartidorNegocio"];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+        };
+    };
+    listarEmpleadosNegocio: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description El dueño primero y luego los empleados por nombre */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmpleadoNegocio"][];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    altaEmpleado: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AltaMiembro"];
+            };
+        };
+        responses: {
+            /** @description Empleado creado; recibe un email para crear su contraseña */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmpleadoNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            /** @description No es el dueño del negocio */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            409: components["responses"]["EmailRegistrado"];
+        };
+    };
+    editarEmpleado: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id de la cuenta (el de `auth.users` y `perfiles`). */
+                id: components["parameters"]["UsuarioId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatosMiembro"];
+            };
+        };
+        responses: {
+            /** @description Empleado actualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmpleadoNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+        };
+    };
+    cambiarActivoEmpleado: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id de la cuenta (el de `auth.users` y `perfiles`). */
+                id: components["parameters"]["UsuarioId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    activo: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Empleado actualizado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmpleadoNegocio"];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+            /** @description No se puede desactivar al dueño */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
         };
     };
 }

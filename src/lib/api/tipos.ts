@@ -27,3 +27,6 @@ export type DatosMiNegocio = Esquemas["DatosMiNegocio"];
 export type CategoriaCarta = Esquemas["CategoriaCarta"];
 export type ProductoCarta = Esquemas["ProductoCarta"];
 export type DatosProducto = Esquemas["DatosProducto"];
+export type EmpleadoNegocio = Esquemas["EmpleadoNegocio"];
+export type DatosMiembro = Esquemas["DatosMiembro"];
+export type AltaMiembro = Esquemas["AltaMiembro"];

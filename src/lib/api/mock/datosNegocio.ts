@@ -1,4 +1,4 @@
-import type { CambioEstado, CategoriaCarta, EstadoPedido, FranjaHorario, LineaPedido, MetodoPago, MiNegocio, PedidoNegocio, Perfil, RepartidorNegocio } from "../tipos";
+import type { CambioEstado, CategoriaCarta, EmpleadoNegocio, EstadoPedido, FranjaHorario, LineaPedido, MetodoPago, MiNegocio, PedidoNegocio, Perfil, RepartidorNegocio } from "../tipos";
 import { localidades, negocios } from "./datos";
 
 /**
@@ -19,10 +19,16 @@ export const perfilNegocio: Perfil = {
 };
 
 export const repartidores: RepartidorNegocio[] = [
-  { id: "00000000-0000-4000-8000-000000000201", nombre: "Marta Díaz", email: "marta.diaz@hamburgueseriapepe.es", telefono: "622 410 118", activo: true, disponible: true, pedidosEnReparto: 0 },
-  { id: "00000000-0000-4000-8000-000000000202", nombre: "Juan Torres", email: "juan.torres@hamburgueseriapepe.es", telefono: "633 902 457", activo: true, disponible: true, pedidosEnReparto: 0 },
-  { id: "00000000-0000-4000-8000-000000000203", nombre: "Pedro Sanz", email: "pedro.sanz@hamburgueseriapepe.es", telefono: "644 785 230", activo: true, disponible: false, pedidosEnReparto: 0 },
-  { id: "00000000-0000-4000-8000-000000000204", nombre: "Laura Gil", email: "laura.gil@hamburgueseriapepe.es", telefono: null, activo: false, disponible: false, pedidosEnReparto: 0 },
+  { id: "00000000-0000-4000-8000-000000000201", nombre: "Marta Díaz", email: "marta@hamburgueseriapepe.es", telefono: "655 333 444", activo: true, disponible: true, pedidosEnReparto: 0, repartosHoy: 4 },
+  { id: "00000000-0000-4000-8000-000000000202", nombre: "Juan Torres", email: "juan@hamburgueseriapepe.es", telefono: "655 111 222", activo: true, disponible: true, pedidosEnReparto: 0, repartosHoy: 5 },
+  { id: "00000000-0000-4000-8000-000000000203", nombre: "Sergio Ortega", email: "sergio@hamburgueseriapepe.es", telefono: "655 555 666", activo: false, disponible: false, pedidosEnReparto: 0, repartosHoy: 0 },
+];
+
+/** Personas del negocio de N04: el dueño y dos empleados. */
+export const empleados: EmpleadoNegocio[] = [
+  { id: pepe.dueno!.id, nombre: "Pepe García", email: pepe.dueno!.email, telefono: "655 112 233", esDueno: true, activo: true },
+  { id: "00000000-0000-4000-8000-000000000211", nombre: "Ana Moreno", email: "ana@hamburgueseriapepe.es", telefono: "622 418 903", esDueno: false, activo: true },
+  { id: "00000000-0000-4000-8000-000000000212", nombre: "Luis Castro", email: "luis@hamburgueseriapepe.es", telefono: null, esDueno: false, activo: true },
 ];
 
 export const perfilRepartidor: Perfil = {
@@ -121,7 +127,7 @@ const haceMin = (min: number, base = Date.now()) => new Date(base - min * 60_000
 function historial(estado: EstadoPedido, creadoHaceMin: number, cliente: string, repartidor?: string): CambioEstado[] {
   const pasos: [EstadoPedido, number, string][] = [["RECIBIDO", 0, cliente]];
   const orden: EstadoPedido[] = ["EN_PREPARACION", "LISTO", "EN_REPARTO"];
-  const autores = ["Pepe García", "Ana Ruiz", repartidor ? "Pepe García" : "Ana Ruiz"];
+  const autores = ["Pepe García", "Ana Moreno", repartidor ? "Pepe García" : "Ana Moreno"];
   const hasta = orden.indexOf(estado);
   for (let i = 0; i <= hasta; i++) pasos.push([orden[i]!, Math.round(((i + 1) * creadoHaceMin) / (hasta + 2)), autores[i]!]);
   return pasos.map(([nuevo, tras, autor], i) => ({
@@ -174,6 +180,7 @@ export function crearPedido(d: {
 
 const juan = repartidores[1]!;
 juan.pedidosEnReparto = 1;
+juan.repartosHoy++;
 
 export const pedidos: PedidoNegocio[] = [
   crearPedido({ cliente: "Rafael Gómez", estado: "EN_REPARTO", haceMin: 33, pago: "TARJETA", lineas: lineas([1, "Hamburguesa de pollo"], [1, "Patatas fritas"]), direccion: "C/ Sevilla 41 · Osuna", telefono: "611 204 587", repartidor: juan }),
