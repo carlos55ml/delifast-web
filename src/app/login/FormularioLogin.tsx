@@ -4,7 +4,9 @@ import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Boton } from "@/components/ui/Boton";
 import { CampoTexto } from "@/components/ui/CampoTexto";
+import { fijarRolDemo } from "@/lib/auth/demo";
 import { ZONA_POR_ROL, rolDesdeClaims } from "@/lib/auth/roles";
+import type { Rol } from "@/lib/api/tipos";
 import { config } from "@/lib/config";
 import { createClient } from "@/lib/supabase/client";
 
@@ -19,8 +21,6 @@ export function FormularioLogin() {
 
   async function entrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- sesión de demostración
-    if (config.authMock) return window.location.assign("/admin");
 
     if (!config.supabaseUrl) {
       setError("Falta configurar Supabase en .env.local (o activa NEXT_PUBLIC_AUTH_MOCK para desarrollar sin él).");
@@ -55,6 +55,8 @@ export function FormularioLogin() {
     window.location.assign(siguiente?.startsWith(zona) ? siguiente : zona);
   }
 
+  if (config.authMock) return <EntradaDemo />;
+
   return (
     <form onSubmit={entrar} className="flex flex-col gap-5">
       <CampoTexto etiqueta="Email" name="email" type="email" required autoComplete="email" placeholder="tu@email.com" />
@@ -62,5 +64,24 @@ export function FormularioLogin() {
       {error && <p role="alert" className="texto-pequeno text-estado-error">{error}</p>}
       <Boton type="submit" tamano="grande" disabled={enviando}>{enviando ? "Entrando…" : "Iniciar sesión"}</Boton>
     </form>
+  );
+}
+
+function entrarDemo(rol: Rol) {
+  fijarRolDemo(rol);
+  window.location.assign(ZONA_POR_ROL[rol]!);
+}
+
+/** Con NEXT_PUBLIC_AUTH_MOCK=true no hay Supabase: se elige con qué rol entrar. */
+function EntradaDemo() {
+  return (
+    <div className="flex flex-col gap-3">
+      <p role="note" className="rounded-[10px] bg-estado-aviso-fondo px-3 py-2 texto-pequeno text-estado-aviso-texto">
+        Modo demostración: elige con qué cuenta de ejemplo entrar.
+      </p>
+      <Boton tamano="grande" onClick={() => entrarDemo("NEGOCIO")}>Entrar como negocio</Boton>
+      <Boton tamano="grande" tipo="fantasma" onClick={() => entrarDemo("REPARTIDOR")}>Entrar como repartidor</Boton>
+      <Boton tamano="grande" tipo="fantasma" onClick={() => entrarDemo("ADMINISTRADOR")}>Entrar como administrador</Boton>
+    </div>
   );
 }

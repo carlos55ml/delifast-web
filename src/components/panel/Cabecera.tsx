@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Icono } from "@/components/ui/Icono";
 import { iniciales } from "@/lib/formato";
 import { useUsuario } from "./UsuarioContexto";
 
-/** "Cabecera web" de Figma, sin el interruptor de abierto (solo es del negocio). */
-export function Cabecera({ titulo, subtitulo }: { titulo: string; subtitulo?: string }) {
+/** "Cabecera web" de Figma. `acciones` va antes de la campana (el interruptor "Abierto" del negocio). */
+export function Cabecera({ titulo, subtitulo, acciones }: { titulo: string; subtitulo?: string; acciones?: ReactNode }) {
   const usuario = useUsuario();
   return (
     <header className="flex h-20 shrink-0 items-center justify-between gap-6 border-b border-neutro-borde bg-white px-8">
@@ -15,6 +15,7 @@ export function Cabecera({ titulo, subtitulo }: { titulo: string; subtitulo?: st
         <p className="min-h-[18px] texto-pequeno text-neutro-texto-secundario">{subtitulo}</p>
       </div>
       <div className="flex shrink-0 items-center gap-5">
+        {acciones}
         <Icono nombre="campana" />
         <div className="flex items-center gap-2.5">
           <span className="flex size-9 items-center justify-center rounded-full bg-marca-rojo-claro texto-destacado text-marca-rojo" aria-hidden>

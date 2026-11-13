@@ -10,7 +10,7 @@ import { api, datos } from "@/lib/api/client";
 import type { NegocioAdmin } from "@/lib/api/tipos";
 import { plural } from "@/lib/formato";
 import { useConsulta } from "@/lib/useConsulta";
-import { Cabecera } from "./Cabecera";
+import { Cabecera } from "@/components/panel/Cabecera";
 import { FormularioNegocio } from "./FormularioNegocio";
 
 const filtros = [

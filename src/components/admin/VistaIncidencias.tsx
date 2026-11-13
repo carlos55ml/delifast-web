@@ -10,7 +10,7 @@ import {
   TEXTO_ESTADO_INCIDENCIA, TEXTO_ORIGEN_INCIDENCIA, TEXTO_TIPO_INCIDENCIA, codigoCorto, fechaRelativa, plural,
 } from "@/lib/formato";
 import { useConsulta } from "@/lib/useConsulta";
-import { Cabecera } from "./Cabecera";
+import { Cabecera } from "@/components/panel/Cabecera";
 
 const filtros: { clave: string; texto: string; titulo: string; estados?: EstadoIncidencia[] }[] = [
   { clave: "abiertas", texto: "Abiertas", titulo: "Incidencias abiertas", estados: ["ABIERTA", "RESPONDIDA"] },

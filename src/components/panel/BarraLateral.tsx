@@ -8,27 +8,32 @@ import { cerrarSesion } from "@/lib/auth/sesion";
 import { iniciales } from "@/lib/formato";
 import { useUsuario } from "./UsuarioContexto";
 
-const secciones: { href: string; texto: string; icono: NombreIcono }[] = [
-  { href: "/admin", texto: "Resumen", icono: "resumen" },
-  { href: "/admin/negocios", texto: "Negocios", icono: "negocios" },
-  { href: "/admin/incidencias", texto: "Incidencias", icono: "incidencias" },
-];
+export type Seccion = { href: string; texto: string; icono: NombreIcono };
 
 const elemento = "flex h-11 w-full items-center gap-3 rounded-[10px] px-3 py-2.5 texto-normal transition focus-visible:outline-2 focus-visible:outline-marca-rojo";
 
-/** "Barra lateral/Admin" de Figma. */
-export function BarraLateral() {
+/**
+ * "Barra lateral/Admin" y "Barra lateral/Negocio" de Figma. La primera sección es la de inicio
+ * (solo está activa en su ruta exacta); el resto, en su ruta y las que cuelgan de ella.
+ */
+export function BarraLateral({ etiqueta, secciones, descripcionUsuario }: {
+  etiqueta: string;
+  secciones: Seccion[];
+  /** Línea bajo el nombre: "Administrador", "Dueño · Hamburguesería Pepe"... */
+  descripcionUsuario?: string;
+}) {
   const ruta = usePathname();
   const usuario = useUsuario();
+  const inicio = secciones[0]!.href;
 
   return (
-    <nav aria-label="Administración" className="sticky top-0 flex h-dvh w-[264px] shrink-0 flex-col gap-1 border-r border-neutro-borde bg-white px-4 pt-6 pb-5">
-      <Link href="/admin" className="pb-6 pl-3" aria-label="DeliFast: ir al resumen">
+    <nav aria-label={etiqueta} className="sticky top-0 flex h-dvh w-[264px] shrink-0 flex-col gap-1 border-r border-neutro-borde bg-white px-4 pt-6 pb-5">
+      <Link href={inicio} className="pb-6 pl-3" aria-label={`DeliFast: ir a ${secciones[0]!.texto.toLowerCase()}`}>
         <Logo />
       </Link>
 
       {secciones.map(({ href, texto, icono }) => {
-        const activa = href === "/admin" ? ruta === href : ruta.startsWith(href);
+        const activa = href === inicio ? ruta === href : ruta.startsWith(href);
         return (
           <Link
             key={href}
@@ -50,7 +55,7 @@ export function BarraLateral() {
         </span>
         <div className="flex min-w-0 flex-col">
           <p className="truncate texto-destacado">{usuario?.nombre ?? "…"}</p>
-          <p className="texto-etiqueta text-neutro-texto-secundario">Administrador</p>
+          <p className="truncate texto-etiqueta text-neutro-texto-secundario">{descripcionUsuario}</p>
         </div>
       </div>
       <button type="button" onClick={cerrarSesion} className={`${elemento} cursor-pointer text-neutro-texto-secundario hover:bg-neutro-fondo`}>

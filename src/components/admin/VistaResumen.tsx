@@ -8,7 +8,7 @@ import { EstadoTabla, Tarjeta } from "@/components/ui/Tarjeta";
 import { api, datos } from "@/lib/api/client";
 import { TEXTO_TIPO_INCIDENCIA, fechaLarga, fechaRelativa, plural } from "@/lib/formato";
 import { useConsulta } from "@/lib/useConsulta";
-import { Cabecera, useFechaDeHoy } from "./Cabecera";
+import { Cabecera, useFechaDeHoy } from "@/components/panel/Cabecera";
 
 /** A01 Admin · Resumen (RF-31). */
 export function VistaResumen() {

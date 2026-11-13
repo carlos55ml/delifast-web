@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { config as entorno } from "@/lib/config";
+import { COOKIE_ROL_DEMO, rolDemo } from "@/lib/auth/demo";
 import { ROL_POR_ZONA, ZONA_POR_ROL, rolDesdeClaims, zonaDeRuta } from "@/lib/auth/roles";
 import { actualizarSesion } from "@/lib/supabase/proxy";
 
@@ -11,13 +12,10 @@ import { actualizarSesion } from "@/lib/supabase/proxy";
 export async function proxy(request: NextRequest) {
   const ruta = request.nextUrl.pathname;
 
-  if (entorno.authMock) {
-    // Sesión de demostración: siempre administrador.
-    if (ruta === "/" || ruta === "/login") return NextResponse.redirect(new URL("/admin", request.url));
-    return NextResponse.next();
-  }
-
-  const { response, claims } = await actualizarSesion(request);
+  // Sesión de demostración: el rol elegido en /login va en una cookie (src/lib/auth/demo.ts).
+  const { response, claims } = entorno.authMock
+    ? demo(request)
+    : await actualizarSesion(request);
   const rol = rolDesdeClaims(claims);
   const zonaPropia = rol ? ZONA_POR_ROL[rol] : null;
   const zona = zonaDeRuta(ruta);
@@ -39,6 +37,11 @@ export async function proxy(request: NextRequest) {
   }
 
   return response;
+}
+
+function demo(request: NextRequest) {
+  const rol = rolDemo(request.cookies.get(COOKIE_ROL_DEMO)?.value);
+  return { response: NextResponse.next(), claims: rol ? { user_rol: rol } : null };
 }
 
 export const config = {
