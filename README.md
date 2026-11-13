@@ -6,10 +6,12 @@ Los clientes usan la app móvil (repositorio `DeliFast_App`).
 | Zona | Usuarios | Contenido |
 |---|---|---|
 | `/admin` | Administrador | Resumen, alta y suspensión de negocios, incidencias (**hecho**) |
-| `/negocio` | Dueño y empleados del negocio | Pedidos en tiempo real, carta, repartidores, incidencias, estadísticas (*pendiente*) |
+| `/negocio` | Dueño y empleados del negocio | Pedidos en tiempo real, carta, equipo, incidencias, estadísticas y configuración (**hecho**) |
 | `/repartidor` | Repartidores (vista móvil, PWA) | Mis pedidos, entrega y cobro, perfil (*pendiente*) |
 
 `/login` es común: tras iniciar sesión, cada usuario va a su zona según el rol de su token.
+`/recuperar` y `/nueva-contrasena` sirven para recuperar la contraseña (RF-03) y para crearla al
+aceptar una invitación; los enlaces de Supabase vuelven a `/auth/confirmar`.
 
 ## Tecnologías
 
@@ -34,7 +36,7 @@ npm run dev                  # http://localhost:3000
 | Variable | `true` | `false` |
 |---|---|---|
 | `NEXT_PUBLIC_API_MOCK` | Un simulador en el navegador responde con datos de ejemplo, cumpliendo el contrato de la API | Llama a la API real en `NEXT_PUBLIC_API_URL` |
-| `NEXT_PUBLIC_AUTH_MOCK` | Sesión fija de administrador, sin Supabase (solo desarrollo) | Login con Supabase Auth |
+| `NEXT_PUBLIC_AUTH_MOCK` | Sin Supabase: en `/login` se elige entrar como negocio, repartidor o administrador (solo desarrollo) | Login con Supabase Auth |
 
 Con los dos a `true` la web funciona sin backend ni Supabase. Para usar el backend real, pon
 `NEXT_PUBLIC_API_MOCK=false` y arranca `DeliFast_Backend`. Una banda amarilla avisa cuando hay algo simulado.
@@ -52,6 +54,10 @@ Con los dos a `true` la web funciona sin backend ni Supabase. Para usar el backe
 Los errores siguen ProblemDetail (RFC 9457), como el `GlobalExceptionHandler` del backend.
 
 ## Inicio de sesión y roles
+
+En el panel de Supabase (*Authentication → URL Configuration*) hay que añadir a *Redirect URLs*
+`http://localhost:3000/auth/confirmar` (y la URL de Vercel). El backend, al invitar cuentas con
+`inviteUserByEmail`, debe pasar `redirectTo` = `<URL de la web>/auth/confirmar?siguiente=/nueva-contrasena`.
 
 - `src/proxy.ts` (el antiguo *middleware* de Next.js) refresca la sesión de Supabase en cada petición
   y redirige: sin sesión a `/login`; con sesión, cada rol solo entra en su zona.

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Boton } from "@/components/ui/Boton";
@@ -14,10 +15,15 @@ const MENSAJES: Record<string, string> = {
   "sin-acceso": "Tu cuenta no tiene acceso a la web.",
 };
 
+const AVISOS: Record<string, string> = {
+  "contrasena-cambiada": "Contraseña guardada. Ya puedes iniciar sesión con ella.",
+};
+
 export function FormularioLogin() {
   const parametros = useSearchParams();
   const [error, setError] = useState<string | undefined>(MENSAJES[parametros.get("error") ?? ""]);
   const [enviando, setEnviando] = useState(false);
+  const aviso = AVISOS[parametros.get("aviso") ?? ""];
 
   async function entrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -59,8 +65,12 @@ export function FormularioLogin() {
 
   return (
     <form onSubmit={entrar} className="flex flex-col gap-5">
+      {aviso && <p role="status" className="rounded-[10px] bg-estado-exito-fondo px-3 py-2 texto-pequeno text-estado-exito-texto">{aviso}</p>}
       <CampoTexto etiqueta="Email" name="email" type="email" required autoComplete="email" placeholder="tu@email.com" />
-      <CampoTexto etiqueta="Contraseña" name="password" type="password" required autoComplete="current-password" placeholder="••••••••" />
+      <div className="flex flex-col gap-2">
+        <CampoTexto etiqueta="Contraseña" name="password" type="password" required autoComplete="current-password" placeholder="••••••••" />
+        <Link href="/recuperar" className="self-end texto-pequeno font-semibold text-marca-rojo hover:underline">¿Has olvidado tu contraseña?</Link>
+      </div>
       {error && <p role="alert" className="texto-pequeno text-estado-error">{error}</p>}
       <Boton type="submit" tamano="grande" disabled={enviando}>{enviando ? "Entrando…" : "Iniciar sesión"}</Boton>
     </form>
@@ -82,6 +92,7 @@ function EntradaDemo() {
       <Boton tamano="grande" onClick={() => entrarDemo("NEGOCIO")}>Entrar como negocio</Boton>
       <Boton tamano="grande" tipo="fantasma" onClick={() => entrarDemo("REPARTIDOR")}>Entrar como repartidor</Boton>
       <Boton tamano="grande" tipo="fantasma" onClick={() => entrarDemo("ADMINISTRADOR")}>Entrar como administrador</Boton>
+      <Link href="/recuperar" className="self-end texto-pequeno font-semibold text-marca-rojo hover:underline">¿Has olvidado tu contraseña?</Link>
     </div>
   );
 }
