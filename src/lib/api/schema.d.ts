@@ -571,6 +571,67 @@ export interface paths {
         patch: operations["cambiarActivoEmpleado"];
         trace?: never;
     };
+    "/negocio/incidencias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Incidencias de los pedidos del negocio (N05, RF-21) */
+        get: operations["listarIncidenciasNegocio"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidencias/{id}/responder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IncidenciaId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Responder una incidencia (→ RESPONDIDA, RF-21)
+         * @description Si ya estaba respondida, sustituye la respuesta. El cliente la ve en la app.
+         */
+        post: operations["responderIncidencia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidencias/{id}/resolver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IncidenciaId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Marcar una incidencia como resuelta (→ RESUELTA, RF-21)
+         * @description Si llega `respuesta`, se guarda a la vez. Guarda la fecha de resolución.
+         */
+        post: operations["resolverIncidencia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -917,6 +978,37 @@ export interface components {
             /** Format: email */
             email: string;
         };
+        IncidenciaNegocio: {
+            /** Format: int64 */
+            id: number;
+            tipo: components["schemas"]["TipoIncidencia"];
+            estado: components["schemas"]["EstadoIncidencia"];
+            origen: components["schemas"]["OrigenIncidencia"];
+            descripcion: string;
+            respuesta?: string | null;
+            /** Format: date-time */
+            fechaCreacion: string;
+            /** Format: date-time */
+            fechaResolucion?: string | null;
+            /** @description Quien la comunicó (el cliente o el repartidor, según `origen`). */
+            autor: {
+                /** @example Juan Torres */
+                nombre: string;
+            };
+            pedido: {
+                /** Format: int64 */
+                id: number;
+                /** @example DF-001036 */
+                codigo: string;
+                total: number;
+                metodoPago: components["schemas"]["MetodoPago"];
+                cliente: {
+                    nombre: string;
+                    /** @description Teléfono de contacto del pedido. */
+                    telefono: string;
+                };
+            };
+        };
     };
     responses: {
         /** @description Datos de entrada no válidos */
@@ -982,6 +1074,7 @@ export interface components {
         PedidoId: number;
         CategoriaId: number;
         ProductoId: number;
+        IncidenciaId: number;
         /** @description Id de la cuenta (el de `auth.users` y `perfiles`). */
         UsuarioId: string;
     };
@@ -2002,6 +2095,113 @@ export interface operations {
             404: components["responses"]["NoEncontrado"];
             /** @description No se puede desactivar al dueño */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    listarIncidenciasNegocio: {
+        parameters: {
+            query?: {
+                /** @description Uno o varios estados. Sin él, todas. El filtro "Abiertas" de la web pide ABIERTA y RESPONDIDA. */
+                estado?: components["schemas"]["EstadoIncidencia"][];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Incidencias, de la más reciente a la más antigua */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidenciaNegocio"][];
+                };
+            };
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+        };
+    };
+    responderIncidencia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IncidenciaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    respuesta: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Incidencia respondida */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidenciaNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+            /** @description La incidencia ya está resuelta */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    resolverIncidencia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IncidenciaId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    respuesta?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Incidencia resuelta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidenciaNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
+            404: components["responses"]["NoEncontrado"];
+            /** @description La incidencia ya está resuelta */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

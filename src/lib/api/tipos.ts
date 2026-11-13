@@ -30,3 +30,4 @@ export type DatosProducto = Esquemas["DatosProducto"];
 export type EmpleadoNegocio = Esquemas["EmpleadoNegocio"];
 export type DatosMiembro = Esquemas["DatosMiembro"];
 export type AltaMiembro = Esquemas["AltaMiembro"];
+export type IncidenciaNegocio = Esquemas["IncidenciaNegocio"];
