@@ -4,7 +4,8 @@ export type NombreIcono =
   | "resumen" | "resumen-activo" | "negocios" | "negocios-activo" | "incidencias" | "incidencias-activo"
   | "pedidos" | "pedidos-activo" | "carta" | "carta-activo" | "estadisticas" | "estadisticas-activo"
   | "equipo" | "equipo-activo" | "configuracion" | "configuracion-activo"
-  | "telefono" | "ubicacion" | "nota" | "papelera" | "moto";
+  | "telefono" | "ubicacion" | "nota" | "papelera" | "moto" | "moto-activo"
+  | "reloj" | "efectivo" | "efectivo-activo" | "tarjeta" | "tarjeta-activo" | "perfil" | "perfil-activo" | "atras" | "negocio";
 
 export function Icono({ nombre, className = "" }: { nombre: NombreIcono; className?: string }) {
   return (

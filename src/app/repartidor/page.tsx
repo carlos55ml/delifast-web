@@ -1,8 +1,9 @@
-export default function Page() {
-  return (
-    <main className="p-8">
-      <h1 className="text-2xl font-bold">Vista del repartidor</h1>
-      <p className="text-zinc-500">En construcción.</p>
-    </main>
-  );
+import type { Metadata } from "next";
+import { VistaMisPedidos } from "@/components/repartidor/VistaMisPedidos";
+
+export const metadata: Metadata = { title: "Mis pedidos" };
+
+/** R01 / R05 Mis pedidos. */
+export default function PaginaMisPedidos() {
+  return <VistaMisPedidos />;
 }

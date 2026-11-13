@@ -178,6 +178,15 @@ export function crearPedido(d: {
   };
 }
 
+/** Marca como ENTREGADO un pedido EN_REPARTO, hace `haceMinutos`. */
+function entregado(p: PedidoNegocio, haceMinutos: number): PedidoNegocio {
+  const fecha = haceMin(haceMinutos);
+  p.historial.push({ estadoAnterior: "EN_REPARTO", estadoNuevo: "ENTREGADO", fecha, autor: p.reparto!.repartidor.nombre });
+  p.estado = "ENTREGADO";
+  p.reparto!.fechaEntrega = fecha;
+  return p;
+}
+
 const juan = repartidores[1]!;
 juan.pedidosEnReparto = 1;
 juan.repartosHoy++;
@@ -189,6 +198,8 @@ export const pedidos: PedidoNegocio[] = [
   crearPedido({ cliente: "María López", estado: "EN_PREPARACION", haceMin: 15, pago: "EFECTIVO", lineas: lineas([1, "Hamburguesa doble"], [1, "Aros de cebolla"]), direccion: "Plaza Mayor 2 · Osuna", telefono: "654 778 019" }),
   crearPedido({ cliente: "Lucía Ramírez", estado: "RECIBIDO", haceMin: 8, pago: "EFECTIVO", lineas: lineas([2, "Hamburguesa clásica"], [1, "Patatas fritas"], [2, "Refresco de cola"]), direccion: "C/ Asistente 17 · Osuna", telefono: "698 120 455" }),
   crearPedido({ cliente: "Antonio Pérez", estado: "RECIBIDO", haceMin: 3, pago: "TARJETA", lineas: lineas([1, "Menú DeliFast"], [1, "Nuggets (6 uds.)"], [1, "Refresco de cola"]), direccion: "Av. de la Constitución 8, 1º A · Osuna", telefono: "612 345 678", nota: "Sin cebolla en el menú, por favor." }),
+  // Ya entregado hoy por Juan (sale en "Entregados" de su vista). Va al final para no mover los números de N01.
+  entregado(crearPedido({ cliente: "Inés Campos", estado: "EN_REPARTO", haceMin: 80, pago: "EFECTIVO", lineas: lineas([1, "Serranito"], [1, "Cerveza"]), direccion: "C/ San Agustín 6 · Osuna", telefono: "633 120 974", repartidor: juan }), 52),
 ];
 
 /** Pedidos que el simulador "recibe" mientras la página está abierta (Realtime simulado). */
@@ -198,7 +209,7 @@ export const pedidosEntrantes: Parameters<typeof crearPedido>[0][] = [
   { cliente: "Rosa Jiménez", estado: "RECIBIDO", haceMin: 0, pago: "TARJETA", lineas: lineas([1, "Bocadillo de lomo"], [1, "Aros de cebolla"]), direccion: "C/ Sevilla 12 · Osuna", telefono: "601 222 739" },
 ];
 
-miNegocio.pedidosHoy += pedidos.length;
+miNegocio.pedidosHoy += pedidos.length - 1; // el entregado ya está entre los 8
 
 /** Incidencias de N05 (pedidos ya entregados de hoy). */
 export const incidenciasNegocio: IncidenciaNegocio[] = [

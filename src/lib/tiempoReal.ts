@@ -45,3 +45,26 @@ export function escucharPedidosNegocio(
     cancelar();
   };
 }
+
+/**
+ * Escucha los repartos de un repartidor (Realtime sobre `public.repartos`) para ver al momento
+ * lo que le asigna el negocio (RF-20). En modo simulado no hay otros usuarios, así que no avisa.
+ */
+export function escucharRepartos(repartidorId: string, alCambiar: () => void): () => void {
+  if (config.apiMock || !config.supabaseUrl) return () => {};
+  let cancelado = false;
+  let cancelar = () => {};
+  import("@/lib/supabase/client").then(({ createClient }) => {
+    if (cancelado) return;
+    const supabase = createClient();
+    const canal = supabase
+      .channel(`repartos-${repartidorId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "repartos", filter: `repartidor_id=eq.${repartidorId}` }, () => alCambiar())
+      .subscribe();
+    cancelar = () => void supabase.removeChannel(canal);
+  });
+  return () => {
+    cancelado = true;
+    cancelar();
+  };
+}

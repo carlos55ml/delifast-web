@@ -1,7 +1,8 @@
 import { rolDemoNavegador } from "@/lib/auth/demo";
+import { TEXTO_TIPO_INCIDENCIA } from "@/lib/formato";
 import type {
   AltaMiembro, AltaNegocio, DatosMiembro, DatosMiNegocio, DatosNegocio, DatosProducto, EstadoIncidencia, EstadoPedido, FranjaHorario, NegocioAdmin,
-  PedidoNegocio, Problema, ProductoCarta, ResumenAdmin,
+  MetodoPago, PedidoNegocio, PerfilRepartidor, Problema, ProductoCarta, RepartoRepartidor, ResumenAdmin, TipoIncidencia,
 } from "../tipos";
 import { incidencias, localidades, negocios, perfilAdmin, repartidoresEnRuta } from "./datos";
 import { estadisticasSimuladas } from "./estadisticas";
@@ -114,6 +115,37 @@ function validarMiembro(d: Partial<AltaMiembro>, alta: boolean): string[] {
 
 const emailEnUso = (email: string) =>
   [...empleados, ...repartidores].some((m) => m.email === email) || negocios.some((n) => n.dueno?.email === email);
+
+/** El repartidor de la sesión de demostración y sus repartos, sacados de los pedidos del negocio. */
+const yoRepartidor = () => repartidores.find((r) => r.id === perfilRepartidor.id)!;
+
+function comoReparto(p: PedidoNegocio): RepartoRepartidor {
+  return {
+    id: p.reparto!.id,
+    estado: p.estado as RepartoRepartidor["estado"],
+    fechaAsignacion: p.reparto!.fechaAsignacion,
+    fechaEntrega: p.reparto!.fechaEntrega ?? null,
+    metodoCobro: p.estado === "ENTREGADO" ? (cobros.get(p.id) ?? p.metodoPago) : null,
+    pedido: {
+      id: p.id, codigo: p.codigo, cliente: p.cliente, direccionEntrega: p.direccionEntrega,
+      // Un punto de Osuna distinto para cada pedido, para ver el mapa en la demo.
+      latitud: 37.2376 + ((p.id % 7) - 3) * 0.0012, longitud: -5.1033 + ((p.id % 5) - 2) * 0.0015,
+      telefonoContacto: p.telefonoContacto, metodoPago: p.metodoPago, nota: p.nota ?? null, lineas: p.lineas,
+      subtotal: p.subtotal, gastosEnvio: p.gastosEnvio, total: p.total,
+    },
+  };
+}
+const cobros = new Map<number, MetodoPago>();
+const misPedidos = () => pedidos.filter((p) => p.reparto?.repartidor.id === perfilRepartidor.id && (p.estado === "EN_REPARTO" || p.estado === "ENTREGADO"));
+
+function perfilDeRepartidor(): PerfilRepartidor {
+  const yo = yoRepartidor();
+  return {
+    id: yo.id, nombre: yo.nombre, email: yo.email, telefono: yo.telefono ?? null,
+    negocio: { id: miNegocio.id, nombre: miNegocio.nombre, localidad: miNegocio.localidad.nombre },
+    disponible: yo.disponible, repartosHoy: yo.repartosHoy, enCurso: misPedidos().filter((p) => p.estado === "EN_REPARTO").length,
+  };
+}
 
 const esHoy = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 const sinResolver = (estado: EstadoIncidencia) => estado !== "RESUELTA";
@@ -317,6 +349,55 @@ export async function responderSimulado(request: Request, schemaPath: string): P
       if (periodo !== "DIA" && periodo !== "SEMANA" && periodo !== "MES")
         return problema(400, "Datos de entrada no válidos", { errores: ["periodo: debe ser DIA, SEMANA o MES"] });
       return json(estadisticasSimuladas(periodo, url.searchParams.get("fecha")));
+    }
+
+    case "GET /repartidor/perfil":
+      return json(perfilDeRepartidor());
+
+    case "PATCH /repartidor/disponible": {
+      yoRepartidor().disponible = ((await request.json()) as { disponible: boolean }).disponible;
+      return json(perfilDeRepartidor());
+    }
+
+    case "GET /repartidor/repartos": {
+      const estado = url.searchParams.get("estado");
+      return json(
+        misPedidos()
+          .filter((p) => (estado ? p.estado === estado : true) && (p.estado !== "ENTREGADO" || esHoy(p.reparto!.fechaEntrega ?? "")))
+          .sort((a, b) => b.reparto!.fechaAsignacion.localeCompare(a.reparto!.fechaAsignacion))
+          .map(comoReparto),
+      );
+    }
+
+    case "GET /repartidor/repartos/{id}":
+    case "POST /repartos/{id}/entregar":
+    case "POST /repartos/{id}/incidencias": {
+      const idReparto = Number(url.pathname.split("/")[schemaPath.startsWith("/repartidor/") ? 3 : 2]);
+      const p = misPedidos().find((x) => x.reparto!.id === idReparto);
+      if (!p) return problema(404, `No existe el reparto ${idReparto}`);
+      if (request.method === "GET") return json(comoReparto(p));
+      if (schemaPath.endsWith("/entregar")) {
+        const { metodoCobro } = (await request.json()) as { metodoCobro: MetodoPago };
+        if (metodoCobro !== "EFECTIVO" && metodoCobro !== "TARJETA") return problema(400, "Datos de entrada no válidos", { errores: ["metodoCobro: debe ser EFECTIVO o TARJETA"] });
+        if (p.estado !== "EN_REPARTO") return estadoCambiado(p);
+        p.historial.push({ estadoAnterior: "EN_REPARTO", estadoNuevo: "ENTREGADO", fecha: new Date().toISOString(), autor: perfilRepartidor.nombre });
+        p.estado = "ENTREGADO";
+        p.reparto!.fechaEntrega = new Date().toISOString();
+        cobros.set(p.id, metodoCobro);
+        yoRepartidor().pedidosEnReparto = Math.max(0, yoRepartidor().pedidosEnReparto - 1);
+        return json(comoReparto(p));
+      }
+      const { tipo, descripcion } = (await request.json()) as { tipo: TipoIncidencia; descripcion?: string | null };
+      if (!tipo) return problema(400, "Datos de entrada no válidos", { errores: ["tipo: es obligatorio"] });
+      const incidencia = {
+        id: Math.max(0, ...incidenciasNegocio.map((i) => i.id)) + 1,
+        tipo, estado: "ABIERTA" as const, origen: "REPARTIDOR" as const,
+        descripcion: descripcion?.trim() || TEXTO_TIPO_INCIDENCIA[tipo], respuesta: null,
+        fechaCreacion: new Date().toISOString(), fechaResolucion: null, autor: { nombre: perfilRepartidor.nombre },
+        pedido: { id: p.id, codigo: p.codigo, total: p.total, metodoPago: p.metodoPago, cliente: { nombre: p.cliente.nombre, telefono: p.telefonoContacto } },
+      };
+      incidenciasNegocio.push(incidencia);
+      return json(incidencia, 201);
     }
 
     case "GET /negocio/incidencias": {

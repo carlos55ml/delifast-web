@@ -7,7 +7,7 @@ Los clientes usan la app móvil (repositorio `DeliFast_App`).
 |---|---|---|
 | `/admin` | Administrador | Resumen, alta y suspensión de negocios, incidencias (**hecho**) |
 | `/negocio` | Dueño y empleados del negocio | Pedidos en tiempo real, carta, equipo, incidencias, estadísticas y configuración (**hecho**) |
-| `/repartidor` | Repartidores (vista móvil, PWA) | Mis pedidos, entrega y cobro, perfil (*pendiente*) |
+| `/repartidor` | Repartidores (vista móvil, PWA) | Mis pedidos, mapa y ruta, entrega y cobro, incidencias, perfil (**hecho**) |
 
 `/login` es común: tras iniciar sesión, cada usuario va a su zona según el rol de su token.
 `/recuperar` y `/nueva-contrasena` sirven para recuperar la contraseña (RF-03) y para crearla al
