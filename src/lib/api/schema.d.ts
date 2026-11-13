@@ -632,6 +632,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/negocio/estadisticas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estadísticas del negocio por día, semana o mes (N06, RF-22)
+         * @description Periodo actual en Europe/Madrid que contiene `fecha` (hoy si no llega): el día, la semana
+         *     de lunes a domingo o el mes natural. Cuenta los pedidos no rechazados ni cancelados; la
+         *     facturación suma el total de los ENTREGADO. Cada cifra trae la del periodo anterior para
+         *     compararla.
+         */
+        get: operations["obtenerEstadisticasNegocio"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1008,6 +1031,50 @@ export interface components {
                     telefono: string;
                 };
             };
+        };
+        /** @enum {string} */
+        Periodo: "DIA" | "SEMANA" | "MES";
+        EstadisticasNegocio: {
+            periodo: components["schemas"]["Periodo"];
+            /**
+             * Format: date
+             * @example 2026-11-03
+             */
+            desde: string;
+            /**
+             * Format: date
+             * @example 2026-11-09
+             */
+            hasta: string;
+            pedidos: number;
+            /** @description Los del periodo anterior equivalente. */
+            pedidosAnterior: number;
+            facturacion: number;
+            facturacionAnterior: number;
+            /** @description Minutos de media desde que se recibe hasta que se entrega. Nulo si no hubo entregas. */
+            tiempoMedioEntregaMin?: number | null;
+            tiempoMedioEntregaAnteriorMin?: number | null;
+            incidencias: {
+                total: number;
+                resueltas: number;
+                /** @description ABIERTA + RESPONDIDA. */
+                abiertas: number;
+            };
+            /**
+             * @description Pedidos por tramo para la gráfica: por hora en DIA ("12:00"), por día de la semana en
+             *     SEMANA ("Lun"…"Dom") y por día del mes en MES ("1"…"31"). Incluye los tramos a cero.
+             */
+            serie: {
+                /** @example Vie */
+                etiqueta: string;
+                pedidos: number;
+            }[];
+            /** @description Los 5 productos con más unidades vendidas en el periodo. */
+            masVendidos: {
+                /** @example Hamburguesa clásica */
+                nombre: string;
+                unidades: number;
+            }[];
         };
     };
     responses: {
@@ -2209,6 +2276,33 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problema"];
                 };
             };
+        };
+    };
+    obtenerEstadisticasNegocio: {
+        parameters: {
+            query: {
+                periodo: components["schemas"]["Periodo"];
+                /** @description Un día del periodo que se quiere ver (por defecto, hoy). */
+                fecha?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estadísticas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadisticasNegocio"];
+                };
+            };
+            400: components["responses"]["Validacion"];
+            401: components["responses"]["NoAutenticado"];
+            403: components["responses"]["Prohibido"];
         };
     };
 }

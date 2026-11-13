@@ -31,3 +31,5 @@ export type EmpleadoNegocio = Esquemas["EmpleadoNegocio"];
 export type DatosMiembro = Esquemas["DatosMiembro"];
 export type AltaMiembro = Esquemas["AltaMiembro"];
 export type IncidenciaNegocio = Esquemas["IncidenciaNegocio"];
+export type Periodo = Esquemas["Periodo"];
+export type EstadisticasNegocio = Esquemas["EstadisticasNegocio"];
