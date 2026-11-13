@@ -1,0 +1,17 @@
+import type { components } from "./schema";
+
+/** Alias legibles de los esquemas del contrato (generados en schema.d.ts con `npm run api:types`). */
+type Esquemas = components["schemas"];
+
+export type Rol = Esquemas["Rol"];
+export type Perfil = Esquemas["Perfil"];
+export type Localidad = Esquemas["Localidad"];
+export type DatosNegocio = Esquemas["DatosNegocio"];
+export type AltaNegocio = Esquemas["AltaNegocio"];
+export type NegocioAdmin = Esquemas["NegocioAdmin"];
+export type IncidenciaAdmin = Esquemas["IncidenciaAdmin"];
+export type EstadoIncidencia = Esquemas["EstadoIncidencia"];
+export type TipoIncidencia = Esquemas["TipoIncidencia"];
+export type OrigenIncidencia = Esquemas["OrigenIncidencia"];
+export type ResumenAdmin = Esquemas["ResumenAdmin"];
+export type Problema = Esquemas["Problema"];
